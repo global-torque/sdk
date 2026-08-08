@@ -1,0 +1,436 @@
+openapi: 3.0.3
+info:
+  title: Offering API
+  version: 1.0.1
+paths:
+  /v1.0/public/offer:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferListResponse'
+          description: Published offer list.
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+            default: 50
+          description: Maximum number of records to return.
+        - in: query
+          name: offset
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+          description: Number of records to skip before returning results.
+      tags:
+        - Offers
+      operationId: OfferList
+      summary: List Offers
+      description: List published public offers that have an entity id.
+      requestBody:
+        content: {}
+  /v1.0/public/offer/{slug}:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferDetailResponse'
+          description: Offer details.
+        '404':
+          description: Published offer was not found.
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+          description: Offer slug, or a numeric offer id accepted by this endpoint.
+      tags:
+        - Offers
+      operationId: OfferDetail
+      summary: Retrieve Offer
+      description: >-
+        Retrieve one published public offer by slug or numeric id. Funding instructions in the offer
+        data are intentionally public.
+      requestBody:
+        content: {}
+components:
+  schemas:
+    OfferListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfferListItemResponse'
+        count:
+          type: integer
+      additionalProperties: false
+    OfferListItemResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        legal_name:
+          type: string
+        slug:
+          type: string
+        title:
+          type: string
+        security_type:
+          type: string
+        security_info:
+          type: object
+          additionalProperties: {}
+        price_per_share:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,19})(\.[0-9]{0,17}[1-9])?$
+          description: Canonical exact decimal string; JSON numeric tokens are rejected.
+        min_investment:
+          type: string
+          pattern: ^(0\.[0-9]{0,17}[1-9]|[1-9][0-9]{0,19}(\.[0-9]{0,17}[1-9])?)$
+          description: Positive canonical exact decimal string; JSON numeric tokens and zero are rejected.
+        image_link_id:
+          type: integer
+          nullable: true
+        total_shares:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,19})(\.[0-9]{0,17}[1-9])?$
+          description: Canonical exact decimal string; JSON numeric tokens are rejected.
+        valuation:
+          type: number
+        subscribed_shares:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,19})(\.[0-9]{0,17}[1-9])?$
+          description: Canonical exact decimal string; JSON numeric tokens are rejected.
+        confirmed_shares:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,19})(\.[0-9]{0,17}[1-9])?$
+          description: Canonical exact decimal string; JSON numeric tokens are rejected.
+        status:
+          type: string
+        approved_at:
+          type: string
+        website:
+          type: string
+        state:
+          type: string
+        city:
+          type: string
+        reg_type:
+          type: string
+        offer_jurisdiction:
+          type: string
+        instrument_classification:
+          type: string
+        offering_mode:
+          type: string
+        offering_currency:
+          type: string
+        investor_eligibility:
+          type: array
+          items:
+            type: string
+        marketed_jurisdictions:
+          type: array
+          items:
+            type: string
+        regulated_activities:
+          type: array
+          items:
+            type: string
+        close_at:
+          type: string
+          format: date-time
+        seo_title:
+          type: string
+        seo_description:
+          type: string
+        ticker:
+          type: string
+        tokenization_engine:
+          type: string
+        fund_structure:
+          type: string
+          enum:
+            - open_ended
+            - closed_ended
+        on_chain_summary:
+          $ref: '#/components/schemas/OfferOnChainSummary'
+        amount_raised:
+          type: number
+        target_raise:
+          type: number
+      additionalProperties: false
+    OfferOnChainSummary:
+      type: object
+      properties:
+        network:
+          type: string
+          enum:
+            - ethereum
+            - ethereum-sepolia
+            - polygon
+            - base
+        asset_token:
+          $ref: '#/components/schemas/OfferOnChainAssetToken'
+        custody:
+          $ref: '#/components/schemas/OfferOnChainCustody'
+        vault:
+          $ref: '#/components/schemas/OfferOnChainVault'
+        latest_finalized_nav:
+          anyOf:
+            - type: object
+              nullable: true
+            - $ref: '#/components/schemas/OfferLatestFinalizedNAV'
+        subscription_availability:
+          readOnly: true
+          allOf:
+            - $ref: '#/components/schemas/OfferSubscriptionAvailability'
+      additionalProperties: false
+    OfferOnChainAssetToken:
+      type: object
+      properties:
+        standard:
+          type: string
+        symbol:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        decimals:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+    OfferOnChainCustody:
+      type: object
+      properties:
+        address:
+          type: string
+          pattern: ^0x[0-9a-f]{40}$
+        explorer_url:
+          type: string
+          format: url
+      required:
+        - address
+      additionalProperties: false
+    OfferOnChainVault:
+      type: object
+      properties:
+        standard:
+          type: string
+        address:
+          type: string
+          nullable: true
+        share_decimals:
+          type: integer
+          minimum: 0
+        share_symbol:
+          type: string
+      additionalProperties: false
+    OfferLatestFinalizedNAV:
+      type: object
+      properties:
+        id:
+          type: integer
+        version:
+          type: integer
+        nav_usdc_raw:
+          type: string
+        vault_total_supply_raw:
+          type: string
+        nav_share_supply_raw:
+          type: string
+        valuation_block_number:
+          type: string
+        valuation_as_of:
+          type: string
+        finalized_at:
+          type: string
+      required:
+        - finalized_at
+        - id
+        - nav_share_supply_raw
+        - nav_usdc_raw
+        - valuation_as_of
+        - valuation_block_number
+        - vault_total_supply_raw
+        - version
+      additionalProperties: false
+    OfferSubscriptionAvailability:
+      type: object
+      properties:
+        available:
+          type: boolean
+        reason:
+          type: string
+          enum:
+            - offer_not_published
+            - not_open_ended
+            - unsupported_tokenization_engine
+            - vault_not_deployed
+            - null
+          nullable: true
+      required:
+        - available
+      additionalProperties: false
+    OfferDetailResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        legal_name:
+          type: string
+        slug:
+          type: string
+        title:
+          type: string
+        security_type:
+          type: string
+        security_info:
+          type: object
+          additionalProperties: {}
+        price_per_share:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,19})(\.[0-9]{0,17}[1-9])?$
+          description: Canonical exact decimal string; JSON numeric tokens are rejected.
+        min_investment:
+          type: string
+          pattern: ^(0\.[0-9]{0,17}[1-9]|[1-9][0-9]{0,19}(\.[0-9]{0,17}[1-9])?)$
+          description: Positive canonical exact decimal string; JSON numeric tokens and zero are rejected.
+        image_link_id:
+          type: integer
+          nullable: true
+        total_shares:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,19})(\.[0-9]{0,17}[1-9])?$
+          description: Canonical exact decimal string; JSON numeric tokens are rejected.
+        valuation:
+          type: number
+        subscribed_shares:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,19})(\.[0-9]{0,17}[1-9])?$
+          description: Canonical exact decimal string; JSON numeric tokens are rejected.
+        confirmed_shares:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,19})(\.[0-9]{0,17}[1-9])?$
+          description: Canonical exact decimal string; JSON numeric tokens are rejected.
+        status:
+          type: string
+        approved_at:
+          type: string
+        website:
+          type: string
+        state:
+          type: string
+        city:
+          type: string
+        reg_type:
+          type: string
+        offer_jurisdiction:
+          type: string
+        instrument_classification:
+          type: string
+        offering_mode:
+          type: string
+        offering_currency:
+          type: string
+        investor_eligibility:
+          type: array
+          items:
+            type: string
+        marketed_jurisdictions:
+          type: array
+          items:
+            type: string
+        regulated_activities:
+          type: array
+          items:
+            type: string
+        close_at:
+          type: string
+          format: date-time
+        seo_title:
+          type: string
+        seo_description:
+          type: string
+        ticker:
+          type: string
+        tokenization_engine:
+          type: string
+        fund_structure:
+          type: string
+          enum:
+            - open_ended
+            - closed_ended
+        on_chain_summary:
+          $ref: '#/components/schemas/OfferOnChainSummary'
+        description:
+          type: string
+        highlights:
+          type: string
+        additional_details:
+          type: string
+        risk_disclosures:
+          type: string
+        data:
+          $ref: '#/components/schemas/OfferOfferData'
+        linkedin:
+          type: string
+        facebook:
+          type: string
+        twitter:
+          type: string
+        github:
+          type: string
+        instagram:
+          type: string
+        telegram:
+          type: string
+        mastodon:
+          type: string
+        amount_raised:
+          type: number
+        target_raise:
+          type: number
+      additionalProperties: false
+    OfferOfferData:
+      type: object
+      properties:
+        wire_to:
+          type: string
+        swift_id:
+          type: string
+        custodian:
+          type: string
+        account_number:
+          type: string
+        routing_number:
+          type: string
+        video:
+          type: string
+        apy:
+          type: string
+        distribution_frequency:
+          type: string
+        property_type:
+          type: string
+        investment_strategy:
+          type: string
+        estimated_hold_period:
+          type: string
+      additionalProperties: false

@@ -1,0 +1,153 @@
+{
+  "name": "@global-torque/sdk",
+  "private": false,
+  "version": "0.1.0-alpha.2",
+  "description": "Framework-free investment resources, transport, and injected EVM wallet building blocks.",
+  "keywords": [
+    "eip-7702",
+    "ethereum",
+    "investments",
+    "sdk",
+    "smart-wallet",
+    "turnkey",
+    "web3"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "sideEffects": false,
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "pnpm run contracts:check && node scripts/build.mjs",
+    "contracts:generate": "node scripts/generate-contract-resources.mjs",
+    "contracts:check": "node scripts/generate-contract-resources.mjs --check",
+    "lint": "eslint --max-warnings=0 src scripts vitest.config.ts",
+    "format:check": "prettier --check \"src/**/*.ts\" \"scripts/**/*.mjs\" \"*.{json,md}\"",
+    "format:write": "prettier --write \"src/**/*.ts\" \"scripts/**/*.mjs\" \"*.{json,md}\"",
+    "docs:check": "node scripts/check-docs.mjs",
+    "test:run": "vitest run && pnpm run test:build-atomic",
+    "test:build-atomic": "node scripts/verify-generation-publication.mjs",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "api:check": "pnpm run build && api-extractor run --verbose",
+    "api:report:update": "pnpm run build && api-extractor run --local --verbose",
+    "package:lint": "pnpm run build && node scripts/verify-package.mjs",
+    "pack:safe": "pnpm run build && node scripts/pack-safe.mjs",
+    "pack:smoke": "pnpm run build && node scripts/verify-packed.mjs",
+    "prepack": "node scripts/assert-packable-output.mjs",
+    "release:artifact": "node scripts/create-release-artifact.mjs",
+    "release:verify": "node scripts/verify-release-bundle.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@microsoft/api-extractor": "7.58.9",
+    "@arethetypeswrong/cli": "0.18.5",
+    "@types/node": "^25.5.0",
+    "@typescript-eslint/eslint-plugin": "^8.63.0",
+    "@typescript-eslint/parser": "^8.63.0",
+    "@vitest/coverage-v8": "4.1.7",
+    "eslint": "9.39.4",
+    "js-yaml": "^4.3.0",
+    "prettier": "3.9.5",
+    "publint": "0.3.21",
+    "typescript": "^6.0.2",
+    "vitest": "4.1.7"
+  },
+  "dependencies": {
+    "@alchemy/wallet-apis": "^5.0.6",
+    "@turnkey/crypto": "^2.10.0",
+    "@turnkey/sdk-browser": "^6.1.1",
+    "@turnkey/viem": "0.14.31",
+    "ajv": "^8.20.0",
+    "viem": "^2.54.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/global-torque/sdk.git"
+  },
+  "homepage": "https://github.com/global-torque/sdk#readme",
+  "bugs": {
+    "url": "https://github.com/global-torque/sdk/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "tag": "next"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE.md",
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "MIGRATION.md",
+    "SECURITY.md",
+    "SUPPORT.md",
+    "CONTRACTS.md",
+    "etc/invest-sdk.api.md"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "import": "./dist/errors.js"
+    },
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "import": "./dist/auth.js"
+    },
+    "./resources/auth": {
+      "types": "./dist/auth.d.ts",
+      "import": "./dist/auth.js"
+    },
+    "./resources/evm": {
+      "types": "./dist/resources/evm.d.ts",
+      "import": "./dist/resources/evm.js"
+    },
+    "./resources/offers": {
+      "types": "./dist/resources/offers.d.ts",
+      "import": "./dist/resources/offers.js"
+    },
+    "./resources/investments": {
+      "types": "./dist/resources/investments.d.ts",
+      "import": "./dist/resources/investments.js"
+    },
+    "./resources/vault": {
+      "types": "./dist/resources/vault.d.ts",
+      "import": "./dist/resources/vault.js"
+    },
+    "./pagination": {
+      "types": "./dist/pagination.d.ts",
+      "import": "./dist/pagination.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    },
+    "./wallet/eip7702": {
+      "types": "./dist/wallet/eip7702.d.ts",
+      "import": "./dist/wallet/eip7702.js"
+    },
+    "./wallet/turnkey": {
+      "types": "./dist/wallet/turnkey.d.ts",
+      "import": "./dist/wallet/turnkey.js"
+    },
+    "./wallet/sponsored-calls": {
+      "types": "./dist/wallet/sponsored-calls.d.ts",
+      "import": "./dist/wallet/sponsored-calls.js"
+    }
+  }
+}

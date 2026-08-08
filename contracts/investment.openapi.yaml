@@ -1,0 +1,2989 @@
+openapi: 3.0.3
+info:
+  title: Investments
+  version: 1.0.1
+paths:
+  /v1.0/auth/invest/{offer_slug}/{profile_id}:
+    post:
+      responses:
+        '201':
+          description: Investment initialized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentDetail'
+              example:
+                id: 123
+                offer:
+                  id: 77
+                  name: Oncolyze Series A
+                  legal_name: Oncolyze, Inc.
+                  slug: oncolyze
+                  title: Oncolyze Series A Preferred Shares
+                  security_type: preferred-equity
+                  price_per_share: '25'
+                  min_investment: '6.25'
+                  image_link_id: 501
+                  total_shares: '100000'
+                  valuation: '25000000'
+                  subscribed_shares: '14000'
+                  confirmed_shares: '12000'
+                  status: published
+                  approved_at: '2026-01-15T12:00:00Z'
+                  website: https://example.com/oncolyze
+                  state: DE
+                  city: Wilmington
+                  reg_type: reg D 506(c)
+                  close_at: '2026-12-31T23:59:59Z'
+                  seo_title: Invest in Oncolyze
+                  seo_description: Preferred equity offering for accredited investors.
+                  data:
+                    wire_to: Oncolyze Escrow Account
+                    swift_id: EXAMPLEUS33
+                    custodian: North Capital
+                    account_number: '****1234'
+                    routing_number: '****0210'
+                  ticker: ONCL
+                  tokenization_engine: ERC-3643
+                  tokenization_model: issuer_sponsored_onchain_register
+                  fund_structure: closed_ended
+                  amount_raised: '350000'
+                  target_raise: '2500000'
+                profile_id: 42
+                user_id: 7
+                price_per_share: '25'
+                number_of_shares: '0.25'
+                amount: '6.25'
+                step: review
+                status: confirmed
+                created_at: '2026-02-10T14:20:00Z'
+                submited_at: '2026-02-10T14:45:00Z'
+                funding_type: ach
+                funding_status: initialize
+                signature_data:
+                  signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                  provider: hellosign
+                escrow_data:
+                  provider: north_capital
+                  escrow_id: esc_123
+                payment_data:
+                  created_at: '2026-02-10T14:30:00Z'
+                  account_type: checking
+                  account_holder_name: Jane Investor
+                  funding_source_id: 101
+                  transaction_id: txn_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                payment_type: north_capital
+                escrow_type: north_capital
+                entity_id: entity_123
+                transaction_ref: wire_20260210_123
+        '400':
+          description: Request body or path parameters are invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                number_of_shares:
+                  - only 50 shares left
+        '401':
+          description: Authorization header is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - unauthorized
+        '404':
+          description: Requested investment, profile, or offer was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - No object found
+      parameters:
+        - in: path
+          name: offer_slug
+          required: true
+          schema:
+            type: string
+            example: oncolyze
+          description: Public offer slug.
+        - in: path
+          name: profile_id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 42
+          description: Investor profile ID.
+      tags:
+        - Investment Creation
+      security:
+        - CookieAuth: []
+      summary: Initialize
+      operationId: InvestmentCreate
+      description: |-
+        Create an investor's initial commitment to an offering.
+        Workflow overview:
+        1. Validate investor eligibility (KYC/AML).
+        2. Verify offering availability and minimum investment amount.
+        3. Record the commitment, status, and allocation.
+        4. Return the created investment record with its unique identifier.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvestmentDetail'
+            example: {}
+  /v1.0/auth/invest/{offer_slug}/amount/{id}/{profile_id}:
+    put:
+      responses:
+        '200':
+          description: Investment amount and funding source were saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AmountStep'
+              example:
+                amount: '6.25'
+                profile_id: 42
+                funding_type: ach
+                funding_source_id: 101
+        '400':
+          description: Request body or path parameters are invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                amount:
+                  - Must be an exact decimal string.
+        '401':
+          description: Authorization header is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - unauthorized
+        '404':
+          description: Requested investment, profile, or offer was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - No object found
+      parameters:
+        - in: path
+          name: offer_slug
+          required: true
+          schema:
+            type: string
+            example: oncolyze
+          description: Public offer slug.
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 123
+          description: Investment ID.
+        - in: path
+          name: profile_id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 42
+          description: Investor profile ID.
+      tags:
+        - Investment Creation
+      security:
+        - CookieAuth: []
+      operationId: InvestmentAmountStep
+      summary: Amount
+      description: Set up investment amount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmountStep'
+            example:
+              amount: '6.25'
+              profile_id: 42
+              funding_type: ach
+              funding_source_id: 101
+  /v1.0/auth/invest/{offer_slug}/signature/{id}/{profile_id}:
+    put:
+      responses:
+        '200':
+          description: Signature metadata was saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignatureStep'
+              example:
+                signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                user_browser: Mozilla/5.0
+                ip_address: 203.0.113.10
+        '400':
+          description: Request body or path parameters are invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                number_of_shares:
+                  - only 50 shares left
+        '401':
+          description: Authorization header is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - unauthorized
+        '404':
+          description: Requested investment, profile, or offer was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - No object found
+      parameters:
+        - in: path
+          name: offer_slug
+          required: true
+          schema:
+            type: string
+            example: oncolyze
+          description: Public offer slug.
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 123
+          description: Investment ID.
+        - in: path
+          name: profile_id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 42
+          description: Investor profile ID.
+      tags:
+        - Investment Creation
+      security:
+        - CookieAuth: []
+      operationId: InvestmentSignatureStep
+      summary: Esignature
+      description: Create electronical signature document with legal binding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignatureStep'
+            example:
+              signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+              user_browser: Mozilla/5.0
+              ip_address: 203.0.113.10
+  /v1.0/auth/invest/{offer_slug}/review/{id}/{profile_id}:
+    put:
+      responses:
+        '200':
+          description: Investment was submitted for confirmation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewStepResponse'
+              example:
+                investment:
+                  id: 123
+                  status: confirmed
+        '400':
+          description: Request body or path parameters are invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                number_of_shares:
+                  - only 50 shares left
+        '401':
+          description: Authorization header is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - unauthorized
+        '404':
+          description: Requested investment, profile, or offer was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - No object found
+      parameters:
+        - in: path
+          name: offer_slug
+          required: true
+          schema:
+            type: string
+            example: oncolyze
+          description: Public offer slug.
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 123
+          description: Investment ID.
+        - in: path
+          name: profile_id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 42
+          description: Investor profile ID.
+      tags:
+        - Investment Creation
+      security:
+        - CookieAuth: []
+      operationId: InvestmentReviewStep
+      summary: Confirmation
+      description: Investment Confirmation Step
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewStep'
+            example: {}
+  /v1.0/auth/investment/{profile_id}/confirmed:
+    get:
+      responses:
+        '200':
+          description: Confirmed investments for the profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfirmedInvestmentListResponse'
+              example:
+                data:
+                  - id: 123
+                    offer:
+                      id: 77
+                      name: Oncolyze Series A
+                      legal_name: Oncolyze, Inc.
+                      slug: oncolyze
+                      title: Oncolyze Series A Preferred Shares
+                      security_type: preferred-equity
+                      price_per_share: '25'
+                      min_investment: '6.25'
+                      image_link_id: 501
+                      total_shares: '100000'
+                      valuation: '25000000'
+                      subscribed_shares: '14000'
+                      confirmed_shares: '12000'
+                      status: published
+                      approved_at: '2026-01-15T12:00:00Z'
+                      website: https://example.com/oncolyze
+                      state: DE
+                      city: Wilmington
+                      reg_type: reg D 506(c)
+                      close_at: '2026-12-31T23:59:59Z'
+                      seo_title: Invest in Oncolyze
+                      seo_description: Preferred equity offering for accredited investors.
+                      data:
+                        wire_to: Oncolyze Escrow Account
+                        swift_id: EXAMPLEUS33
+                        custodian: North Capital
+                        account_number: '****1234'
+                        routing_number: '****0210'
+                      ticker: ONCL
+                      tokenization_engine: ERC-3643
+                      tokenization_model: issuer_sponsored_onchain_register
+                      fund_structure: closed_ended
+                      amount_raised: '350000'
+                      target_raise: '2500000'
+                    profile_id: 42
+                    user_id: 7
+                    price_per_share: '25'
+                    number_of_shares: '0.25'
+                    amount: '6.25'
+                    step: review
+                    status: confirmed
+                    created_at: '2026-02-10T14:20:00Z'
+                    submited_at: '2026-02-10T14:45:00Z'
+                    funding_type: ach
+                    funding_status: initialize
+                    signature_data:
+                      signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                      provider: hellosign
+                    escrow_data:
+                      provider: north_capital
+                      escrow_id: esc_123
+                    payment_data:
+                      created_at: '2026-02-10T14:30:00Z'
+                      account_type: checking
+                      account_holder_name: Jane Investor
+                      funding_source_id: 101
+                      transaction_id: txn_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                    payment_type: north_capital
+                    escrow_type: north_capital
+                    entity_id: entity_123
+                    transaction_ref: wire_20260210_123
+                count: 1
+                meta:
+                  total_investments: 25000
+                  total_investments_12_months: 12000
+                  total_distributions: 1500
+                  avarange_annual: 8.2
+        '401':
+          description: Authorization header is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - unauthorized
+        '404':
+          description: Requested investment, profile, or offer was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - No object found
+      parameters:
+        - in: path
+          name: profile_id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 42
+          description: Investor profile ID.
+        - in: query
+          name: limit
+          required: false
+          description: Maximum number of records to return. The service caps large values.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+            example: 25
+        - in: query
+          name: offset
+          required: false
+          description: Number of records to skip before returning results.
+          schema:
+            type: integer
+            minimum: 0
+            example: 0
+      tags:
+        - Investment Management
+      security:
+        - CookieAuth: []
+      operationId: InvestmentListConfirmed
+      summary: List Confirmed
+      description: Get list of user confirmed investments
+  /v1.0/auth/investment/{profile_id}/unconfirmed:
+    get:
+      responses:
+        '200':
+          description: Unconfirmed investments for the profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentListResponse'
+              example:
+                data:
+                  - id: 123
+                    offer:
+                      id: 77
+                      name: Oncolyze Series A
+                      legal_name: Oncolyze, Inc.
+                      slug: oncolyze
+                      title: Oncolyze Series A Preferred Shares
+                      security_type: preferred-equity
+                      price_per_share: '25'
+                      min_investment: '6.25'
+                      image_link_id: 501
+                      total_shares: '100000'
+                      valuation: '25000000'
+                      subscribed_shares: '14000'
+                      confirmed_shares: '12000'
+                      status: published
+                      approved_at: '2026-01-15T12:00:00Z'
+                      website: https://example.com/oncolyze
+                      state: DE
+                      city: Wilmington
+                      reg_type: reg D 506(c)
+                      close_at: '2026-12-31T23:59:59Z'
+                      seo_title: Invest in Oncolyze
+                      seo_description: Preferred equity offering for accredited investors.
+                      data:
+                        wire_to: Oncolyze Escrow Account
+                        swift_id: EXAMPLEUS33
+                        custodian: North Capital
+                        account_number: '****1234'
+                        routing_number: '****0210'
+                      ticker: ONCL
+                      tokenization_engine: ERC-3643
+                      tokenization_model: issuer_sponsored_onchain_register
+                      fund_structure: closed_ended
+                      amount_raised: '350000'
+                      target_raise: '2500000'
+                    profile_id: 42
+                    user_id: 7
+                    price_per_share: '25'
+                    number_of_shares: '0.25'
+                    amount: '6.25'
+                    step: review
+                    status: confirmed
+                    created_at: '2026-02-10T14:20:00Z'
+                    submited_at: '2026-02-10T14:45:00Z'
+                    funding_type: ach
+                    funding_status: initialize
+                    signature_data:
+                      signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                      provider: hellosign
+                    escrow_data:
+                      provider: north_capital
+                      escrow_id: esc_123
+                    payment_data:
+                      created_at: '2026-02-10T14:30:00Z'
+                      account_type: checking
+                      account_holder_name: Jane Investor
+                      funding_source_id: 101
+                      transaction_id: txn_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                    payment_type: north_capital
+                    escrow_type: north_capital
+                    entity_id: entity_123
+                    transaction_ref: wire_20260210_123
+                count: 1
+        '401':
+          description: Authorization header is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - unauthorized
+        '404':
+          description: Requested investment, profile, or offer was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - No object found
+      parameters:
+        - in: path
+          name: profile_id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 42
+          description: Investor profile ID.
+        - in: query
+          name: limit
+          required: false
+          description: Maximum number of records to return. The service caps large values.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+            example: 25
+        - in: query
+          name: offset
+          required: false
+          description: Number of records to skip before returning results.
+          schema:
+            type: integer
+            minimum: 0
+            example: 0
+      tags:
+        - Investment Management
+      security:
+        - CookieAuth: []
+      operationId: InvestmentListUnconfirmedByProfile
+      summary: List Profile Unconfirmed
+      description: Get unconfirmed investments for a specific investor profile.
+  /v1.0/auth/investment/unconfirmed:
+    get:
+      responses:
+        '200':
+          description: All unconfirmed investments for the authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentListResponse'
+              example:
+                data:
+                  - id: 123
+                    offer:
+                      id: 77
+                      name: Oncolyze Series A
+                      legal_name: Oncolyze, Inc.
+                      slug: oncolyze
+                      title: Oncolyze Series A Preferred Shares
+                      security_type: preferred-equity
+                      price_per_share: '25'
+                      min_investment: '6.25'
+                      image_link_id: 501
+                      total_shares: '100000'
+                      valuation: '25000000'
+                      subscribed_shares: '14000'
+                      confirmed_shares: '12000'
+                      status: published
+                      approved_at: '2026-01-15T12:00:00Z'
+                      website: https://example.com/oncolyze
+                      state: DE
+                      city: Wilmington
+                      reg_type: reg D 506(c)
+                      close_at: '2026-12-31T23:59:59Z'
+                      seo_title: Invest in Oncolyze
+                      seo_description: Preferred equity offering for accredited investors.
+                      data:
+                        wire_to: Oncolyze Escrow Account
+                        swift_id: EXAMPLEUS33
+                        custodian: North Capital
+                        account_number: '****1234'
+                        routing_number: '****0210'
+                      ticker: ONCL
+                      tokenization_engine: ERC-3643
+                      tokenization_model: issuer_sponsored_onchain_register
+                      fund_structure: closed_ended
+                      amount_raised: '350000'
+                      target_raise: '2500000'
+                    profile_id: 42
+                    user_id: 7
+                    price_per_share: '25'
+                    number_of_shares: '0.25'
+                    amount: '6.25'
+                    step: review
+                    status: confirmed
+                    created_at: '2026-02-10T14:20:00Z'
+                    submited_at: '2026-02-10T14:45:00Z'
+                    funding_type: ach
+                    funding_status: initialize
+                    signature_data:
+                      signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                      provider: hellosign
+                    escrow_data:
+                      provider: north_capital
+                      escrow_id: esc_123
+                    payment_data:
+                      created_at: '2026-02-10T14:30:00Z'
+                      account_type: checking
+                      account_holder_name: Jane Investor
+                      funding_source_id: 101
+                      transaction_id: txn_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                    payment_type: north_capital
+                    escrow_type: north_capital
+                    entity_id: entity_123
+                    transaction_ref: wire_20260210_123
+                count: 1
+        '401':
+          description: Authorization header is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - unauthorized
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          description: Maximum number of records to return. The service caps large values.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+            example: 25
+        - in: query
+          name: offset
+          required: false
+          description: Number of records to skip before returning results.
+          schema:
+            type: integer
+            minimum: 0
+            example: 0
+      tags:
+        - Investment Management
+      security:
+        - CookieAuth: []
+      operationId: InvestmentListUnConfirmed
+      summary: List Unconfirmed
+      description: Get list of user unconfirmed investments
+  /v1.0/auth/offer/{offer_slug}/investments:
+    get:
+      responses:
+        '200':
+          description: Profiles with investments for the Funds Manager-owned offer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferInvestmentProfileListResponse'
+              example:
+                data:
+                  - id: 42
+                    type: individual
+                    data:
+                      first_name: Jane
+                      last_name: Investor
+                      email: jane.investor@example.com
+                    kyc_id: kyc_123
+                    kyc_status: approved
+                    accreditation_status: approved
+                    escrow_id: escrow_profile_42
+                    kyc_at: '2026-01-30T09:00:00Z'
+                    accreditation_at: '2026-01-31T09:00:00Z'
+                    updated_at: '2026-02-10T14:45:00Z'
+                    investments:
+                      - id: 123
+                        offer:
+                          id: 77
+                          name: Oncolyze Series A
+                          legal_name: Oncolyze, Inc.
+                          slug: oncolyze
+                          title: Oncolyze Series A Preferred Shares
+                          security_type: preferred-equity
+                          price_per_share: '25'
+                          min_investment: '6.25'
+                          image_link_id: 501
+                          total_shares: '100000'
+                          valuation: '25000000'
+                          subscribed_shares: '14000'
+                          confirmed_shares: '12000'
+                          status: published
+                          approved_at: '2026-01-15T12:00:00Z'
+                          website: https://example.com/oncolyze
+                          state: DE
+                          city: Wilmington
+                          reg_type: reg D 506(c)
+                          close_at: '2026-12-31T23:59:59Z'
+                          seo_title: Invest in Oncolyze
+                          seo_description: Preferred equity offering for accredited investors.
+                          data:
+                            wire_to: Oncolyze Escrow Account
+                            swift_id: EXAMPLEUS33
+                            custodian: North Capital
+                            account_number: '****1234'
+                            routing_number: '****0210'
+                          ticker: ONCL
+                          tokenization_engine: ERC-3643
+                          tokenization_model: issuer_sponsored_onchain_register
+                          fund_structure: closed_ended
+                          amount_raised: '350000'
+                          target_raise: '2500000'
+                        profile_id: 42
+                        user_id: 7
+                        price_per_share: '25'
+                        number_of_shares: '0.25'
+                        amount: '6.25'
+                        step: review
+                        status: confirmed
+                        created_at: '2026-02-10T14:20:00Z'
+                        submited_at: '2026-02-10T14:45:00Z'
+                        funding_type: ach
+                        funding_status: initialize
+                        signature_data:
+                          signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                          provider: hellosign
+                        escrow_data:
+                          provider: north_capital
+                          escrow_id: esc_123
+                        payment_data:
+                          created_at: '2026-02-10T14:30:00Z'
+                          account_type: checking
+                          account_holder_name: Jane Investor
+                          funding_source_id: 101
+                          transaction_id: txn_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                        payment_type: north_capital
+                        escrow_type: north_capital
+                        entity_id: entity_123
+                        transaction_ref: wire_20260210_123
+                count: 1
+        '401':
+          description: Authorization header is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - unauthorized
+        '403':
+          description: Authenticated user is not allowed to perform this operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - forbidden
+        '404':
+          description: Requested investment, profile, or offer was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - No object found
+      parameters:
+        - in: path
+          name: offer_slug
+          required: true
+          schema:
+            type: string
+            example: oncolyze
+          description: Public offer slug.
+      tags:
+        - Investment Management
+      security:
+        - CookieAuth: []
+      operationId: ListOfferInvestments
+      summary: List Offer Investments
+      description: Get all investments for an offer owned by the authenticated Funds Manager.
+  /v1.0/auth/investment/{id}:
+    get:
+      responses:
+        '200':
+          description: Investment detail for the authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentDetail'
+              example:
+                id: 123
+                offer:
+                  id: 77
+                  name: Oncolyze Series A
+                  legal_name: Oncolyze, Inc.
+                  slug: oncolyze
+                  title: Oncolyze Series A Preferred Shares
+                  security_type: preferred-equity
+                  price_per_share: '25'
+                  min_investment: '6.25'
+                  image_link_id: 501
+                  total_shares: '100000'
+                  valuation: '25000000'
+                  subscribed_shares: '14000'
+                  confirmed_shares: '12000'
+                  status: published
+                  approved_at: '2026-01-15T12:00:00Z'
+                  website: https://example.com/oncolyze
+                  state: DE
+                  city: Wilmington
+                  reg_type: reg D 506(c)
+                  close_at: '2026-12-31T23:59:59Z'
+                  seo_title: Invest in Oncolyze
+                  seo_description: Preferred equity offering for accredited investors.
+                  data:
+                    wire_to: Oncolyze Escrow Account
+                    swift_id: EXAMPLEUS33
+                    custodian: North Capital
+                    account_number: '****1234'
+                    routing_number: '****0210'
+                  ticker: ONCL
+                  tokenization_engine: ERC-3643
+                  tokenization_model: issuer_sponsored_onchain_register
+                  fund_structure: closed_ended
+                  amount_raised: '350000'
+                  target_raise: '2500000'
+                profile_id: 42
+                user_id: 7
+                price_per_share: '25'
+                number_of_shares: '0.25'
+                amount: '6.25'
+                step: review
+                status: confirmed
+                created_at: '2026-02-10T14:20:00Z'
+                submited_at: '2026-02-10T14:45:00Z'
+                funding_type: ach
+                funding_status: initialize
+                signature_data:
+                  signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                  provider: hellosign
+                escrow_data:
+                  provider: north_capital
+                  escrow_id: esc_123
+                payment_data:
+                  created_at: '2026-02-10T14:30:00Z'
+                  account_type: checking
+                  account_holder_name: Jane Investor
+                  funding_source_id: 101
+                  transaction_id: txn_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                payment_type: north_capital
+                escrow_type: north_capital
+                entity_id: entity_123
+                transaction_ref: wire_20260210_123
+        '401':
+          description: Authorization header is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - unauthorized
+        '404':
+          description: Requested investment, profile, or offer was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - No object found
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 123
+          description: Investment ID.
+      tags:
+        - Investment Management
+      security:
+        - CookieAuth: []
+      operationId: InvestmentGet
+      summary: Get investment
+      description: Get user investment by id
+  /v1.0/auth/investment/{id}/cancel:
+    put:
+      responses:
+        '200':
+          description: Investment was canceled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyResponse'
+              example: {}
+        '400':
+          description: Request body or path parameters are invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                number_of_shares:
+                  - only 50 shares left
+        '401':
+          description: Authorization header is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - unauthorized
+        '403':
+          description: Authenticated user is not allowed to perform this operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - forbidden
+        '404':
+          description: Requested investment, profile, or offer was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                __error__:
+                  - No object found
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 123
+          description: Investment ID.
+      tags:
+        - Investment Management
+      security:
+        - CookieAuth: []
+      operationId: InvestmentCancel
+      summary: Cancel investment
+      description: Cancel user investment by id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvestmentCancel'
+            example:
+              cancelation_reason: Changed investment plan
+  /v1.0/auth/positions:
+    get:
+      tags:
+        - ERC-7540
+      security:
+        - CookieAuth: []
+      operationId: PositionGet
+      summary: Get the authenticated investor Vault position
+      parameters:
+        - in: query
+          name: offer_id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Combined deployment, deposit, balance, and redemption projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+  /v1.0/auth/redemptions:
+    post:
+      tags:
+        - ERC-7540
+      security:
+        - CookieAuth: []
+      operationId: RedemptionCreate
+      summary: Create a share-denominated redemption intent
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RedemptionCreate'
+      responses:
+        '200':
+          description: Idempotent replay of the existing intent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedemptionCommandResponse'
+        '201':
+          description: Redemption intent created with its persisted NAV estimate.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedemptionCommandResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+    get:
+      tags:
+        - ERC-7540
+      security:
+        - CookieAuth: []
+      operationId: RedemptionList
+      summary: List the authenticated investor redemption lifecycles
+      parameters:
+        - in: query
+          name: profile_id
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: include_completed
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Authoritative redemption business and protocol projections.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedemptionListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1.0/auth/redemptions/{redemption_id}:
+    parameters:
+      - in: path
+        name: redemption_id
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags:
+        - ERC-7540
+      security:
+        - CookieAuth: []
+      operationId: RedemptionGet
+      summary: Get one authenticated investor redemption lifecycle
+      responses:
+        '200':
+          description: Authoritative redemption lifecycle.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedemptionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - ERC-7540
+      security:
+        - CookieAuth: []
+      operationId: RedemptionCancel
+      summary: Cancel one unlocked authenticated investor redemption
+      responses:
+        '200':
+          description: Unlocked redemption cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedemptionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+components:
+  securitySchemes:
+    CookieAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Ory identity id supplied in the Authorization header.
+  schemas:
+    InvestmentDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        offer:
+          $ref: '#/components/schemas/Offer'
+        profile_id:
+          type: integer
+        user_id:
+          type: integer
+        price_per_share:
+          type: string
+        number_of_shares:
+          type: string
+        amount:
+          type: string
+          nullable: true
+        step:
+          type: string
+          enum:
+            - none
+            - new
+            - amount
+            - ownership
+            - signature
+            - funding
+            - review
+        status:
+          type: string
+          enum:
+            - new
+            - confirmed
+            - legally_confirmed
+            - closed_successfully
+            - cancelled_during_investment
+            - cancelled_after_investment
+            - cancelled_by_manager
+            - sold
+            - exited
+            - system_error
+        created_at:
+          type: string
+        submited_at:
+          type: string
+        funding_type:
+          type: string
+          enum:
+            - none
+            - wire
+            - ach
+            - wallet
+            - crypto_wallet
+        funding_status:
+          type: string
+          enum:
+            - creation_error
+            - new
+            - initialize
+            - in_progress
+            - received
+            - settled
+            - failed
+            - sent_back_pending
+            - sent_back_settled
+            - canceled
+        signature_data:
+          type: object
+          additionalProperties: {}
+        escrow_data:
+          type: object
+          additionalProperties: {}
+        payment_data:
+          $ref: '#/components/schemas/PaymentData'
+        payment_type:
+          type: string
+          enum:
+            - none
+            - dwolla
+            - north_capital
+            - easternpointtrust.
+            - apex_group
+            - evm
+            - solana
+        escrow_type:
+          type: string
+          enum:
+            - none
+            - north_capital
+            - prime_trust
+            - apex_group
+        entity_id:
+          type: string
+        transaction_ref:
+          type: string
+        vault_contract_id:
+          type: integer
+          nullable: true
+        request_controller_chain_account_id:
+          type: integer
+          nullable: true
+        request_controller_address:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/EvmAddress'
+        vault_request_origin:
+          type: string
+          enum:
+            - application
+            - chain
+        vault_request_effect_id:
+          type: integer
+          format: int64
+          nullable: true
+        request_effect_state:
+          type: string
+          enum:
+            - assigned
+            - unassigned
+        custody_chain_account_id:
+          type: integer
+          nullable: true
+        custody_funded_at:
+          type: string
+          format: date-time
+          nullable: true
+        custody_refund_locked_at:
+          type: string
+          format: date-time
+          nullable: true
+        custody_released_at:
+          type: string
+          format: date-time
+          nullable: true
+        custody_refunded_at:
+          type: string
+          format: date-time
+          nullable: true
+        deposit_price_source:
+          type: string
+          nullable: true
+          enum:
+            - offer_deck
+            - finalized_nav
+            - chain_forward_nav
+        deposit_pricing_status:
+          type: string
+          enum:
+            - awaiting_dealing_nav
+            - priced
+        deposit_price_usdc_raw:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RawUint256'
+        deposit_nav_record_id:
+          type: integer
+          format: int64
+          nullable: true
+        deposit_nav_version:
+          type: integer
+          format: int64
+          nullable: true
+        deposit_priced_at:
+          type: string
+          format: date-time
+          nullable: true
+        asset_amount_raw:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RawUint256'
+        share_amount_raw:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RawUint256'
+        pending_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimable_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimable_shares_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimed_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimed_shares_raw:
+          $ref: '#/components/schemas/RawUint256'
+        vault_request_locked_at:
+          type: string
+          format: date-time
+          nullable: true
+        vault_requested_at:
+          type: string
+          format: date-time
+          nullable: true
+        vault_claimable_at:
+          type: string
+          format: date-time
+          nullable: true
+        vault_claimed_at:
+          type: string
+          format: date-time
+          nullable: true
+        protocol_state:
+          type: string
+          enum:
+            - unconfirmed
+            - pending
+            - claimable
+            - claimed
+        vault:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/VaultLifecycle'
+      additionalProperties: false
+      description: Investment record including offer, profile, funding, escrow, and signature state.
+      example:
+        id: 123
+        offer:
+          id: 77
+          name: Oncolyze Series A
+          legal_name: Oncolyze, Inc.
+          slug: oncolyze
+          title: Oncolyze Series A Preferred Shares
+          security_type: preferred-equity
+          price_per_share: '25'
+          min_investment: '6.25'
+          image_link_id: 501
+          total_shares: '100000'
+          valuation: '25000000'
+          subscribed_shares: '14000'
+          confirmed_shares: '12000'
+          status: published
+          approved_at: '2026-01-15T12:00:00Z'
+          website: https://example.com/oncolyze
+          state: DE
+          city: Wilmington
+          reg_type: reg D 506(c)
+          close_at: '2026-12-31T23:59:59Z'
+          seo_title: Invest in Oncolyze
+          seo_description: Preferred equity offering for accredited investors.
+          data:
+            wire_to: Oncolyze Escrow Account
+            swift_id: EXAMPLEUS33
+            custodian: North Capital
+            account_number: '****1234'
+            routing_number: '****0210'
+          ticker: ONCL
+          tokenization_engine: ERC-3643
+          tokenization_model: issuer_sponsored_onchain_register
+          fund_structure: closed_ended
+          amount_raised: '350000'
+          target_raise: '2500000'
+        profile_id: 42
+        user_id: 7
+        price_per_share: '25'
+        number_of_shares: '0.25'
+        amount: '6.25'
+        step: review
+        status: confirmed
+        created_at: '2026-02-10T14:20:00Z'
+        submited_at: '2026-02-10T14:45:00Z'
+        funding_type: ach
+        funding_status: initialize
+        signature_data:
+          signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+          provider: hellosign
+        escrow_data:
+          provider: north_capital
+          escrow_id: esc_123
+        payment_data:
+          created_at: '2026-02-10T14:30:00Z'
+          account_type: checking
+          account_holder_name: Jane Investor
+          funding_source_id: 101
+          transaction_id: txn_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+        payment_type: north_capital
+        escrow_type: north_capital
+        entity_id: entity_123
+        transaction_ref: wire_20260210_123
+    Offer:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        legal_name:
+          type: string
+        slug:
+          type: string
+          description: Stable URL slug used in investment routes.
+        title:
+          type: string
+        security_type:
+          type: string
+        price_per_share:
+          type: string
+          description: Exact decimal price paid for each share.
+        min_investment:
+          type: string
+        image_link_id:
+          type: integer
+        total_shares:
+          type: string
+          nullable: true
+          description: Closed-ended capacity only; non-authoritative for open-ended funds.
+        valuation:
+          type: string
+        subscribed_shares:
+          type: string
+          nullable: true
+          description: Legacy closed-ended projection; unused by the ERC-7540 flow.
+        confirmed_shares:
+          type: string
+          nullable: true
+          description: Legacy closed-ended projection; unused by the ERC-7540 flow.
+        status:
+          type: string
+          enum:
+            - new
+            - draft
+            - legal_review
+            - legal_declined
+            - legal_accepted
+            - published
+            - legal_closed
+            - closed_successfully
+            - closed_unsuccessfully
+        approved_at:
+          type: string
+        website:
+          type: string
+        state:
+          type: string
+        city:
+          type: string
+        reg_type:
+          type: string
+        close_at:
+          type: string
+          format: date-time
+        seo_title:
+          type: string
+        seo_description:
+          type: string
+        data:
+          $ref: '#/components/schemas/OfferData'
+        ticker:
+          type: string
+        tokenization_engine:
+          type: string
+        tokenization_model:
+          type: string
+          enum:
+            - none_not_tokenized
+            - issuer_sponsored_onchain_register
+            - issuer_authorized_offchain_register_transfer_instruction
+            - third_party_custodial_entitlement
+            - third_party_linked_security
+            - third_party_synthetic_security_based_swap
+            - platform_entitlement_or_receipt
+            - unknown
+        fund_structure:
+          type: string
+          enum:
+            - open_ended
+            - closed_ended
+        amount_raised:
+          type: string
+          nullable: true
+          description: Computed subscribed_shares * price_per_share value added during serialization.
+        target_raise:
+          type: string
+          nullable: true
+          description: Closed-ended target only; omitted or null for open-ended funds.
+      additionalProperties: false
+      description: Offering data joined onto an investment response.
+      example:
+        id: 77
+        name: Oncolyze Series A
+        legal_name: Oncolyze, Inc.
+        slug: oncolyze
+        title: Oncolyze Series A Preferred Shares
+        security_type: preferred-equity
+        price_per_share: '25'
+        min_investment: '6.25'
+        image_link_id: 501
+        total_shares: '100000'
+        valuation: '25000000'
+        subscribed_shares: '14000'
+        confirmed_shares: '12000'
+        status: published
+        approved_at: '2026-01-15T12:00:00Z'
+        website: https://example.com/oncolyze
+        state: DE
+        city: Wilmington
+        reg_type: reg D 506(c)
+        close_at: '2026-12-31T23:59:59Z'
+        seo_title: Invest in Oncolyze
+        seo_description: Preferred equity offering for accredited investors.
+        data:
+          wire_to: Oncolyze Escrow Account
+          swift_id: EXAMPLEUS33
+          custodian: North Capital
+          account_number: '****1234'
+          routing_number: '****0210'
+        ticker: ONCL
+        tokenization_engine: ERC-3643
+        tokenization_model: issuer_sponsored_onchain_register
+        fund_structure: closed_ended
+        amount_raised: '350000'
+        target_raise: '2500000'
+    OfferData:
+      type: object
+      properties:
+        wire_to:
+          type: string
+        swift_id:
+          type: string
+        custodian:
+          type: string
+        account_number:
+          type: string
+        routing_number:
+          type: string
+      additionalProperties: false
+      description: Wire and custodian instructions associated with an offer.
+      example:
+        wire_to: Oncolyze Escrow Account
+        swift_id: EXAMPLEUS33
+        custodian: North Capital
+        account_number: '****1234'
+        routing_number: '****0210'
+    PaymentData:
+      type: object
+      properties:
+        created_at:
+          type: string
+        account_type:
+          type: string
+        account_holder_name:
+          type: string
+        funding_source_id:
+          type: integer
+        transaction_id:
+          type: string
+      additionalProperties: false
+      description: Payment source and transaction metadata captured during funding.
+      example:
+        created_at: '2026-02-10T14:30:00Z'
+        account_type: checking
+        account_holder_name: Jane Investor
+        funding_source_id: 101
+        transaction_id: txn_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+    EvmAddress:
+      type: string
+      pattern: ^0x[0-9a-f]{40}$
+      example: '0x1111111111111111111111111111111111111111'
+    RawUint256:
+      type: string
+      pattern: ^[0-9]+$
+      description: Lossless base-10 uint256 JSON string.
+      example: '1000000000000000000'
+    VaultLifecycle:
+      type: object
+      additionalProperties: false
+      required:
+        - deployment
+        - deposit
+        - position
+        - redemptions
+      properties:
+        deployment:
+          $ref: '#/components/schemas/VaultDeployment'
+        deposit:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/VaultDeposit'
+        position:
+          $ref: '#/components/schemas/VaultPositionBalance'
+        redemptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/VaultRedemptionLifecycle'
+    VaultDeployment:
+      type: object
+      additionalProperties: false
+      required:
+        - contract_id
+        - status
+        - chain
+        - address
+        - asset
+        - share
+      properties:
+        contract_id:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+        chain:
+          type: string
+          example: ethereum-sepolia
+        address:
+          $ref: '#/components/schemas/EvmAddress'
+        asset:
+          $ref: '#/components/schemas/VaultToken'
+        share:
+          $ref: '#/components/schemas/VaultToken'
+    VaultToken:
+      type: object
+      additionalProperties: false
+      required:
+        - symbol
+        - address
+        - decimals
+      properties:
+        symbol:
+          type: string
+        address:
+          $ref: '#/components/schemas/EvmAddress'
+        decimals:
+          type: integer
+          minimum: 0
+    VaultDeposit:
+      type: object
+      additionalProperties: false
+      required:
+        - investment_id
+        - protocol_state
+        - request_origin
+        - request_controller
+        - custody
+        - pending_assets_raw
+        - claimable_assets_raw
+        - claimable_shares_raw
+        - claimed_assets_raw
+        - claimed_shares_raw
+        - controller_aggregate
+        - operations
+      properties:
+        investment_id:
+          type: integer
+          format: int64
+        protocol_state:
+          type: string
+          enum:
+            - unconfirmed
+            - pending
+            - claimable
+            - claimed
+        request_origin:
+          type: string
+          enum:
+            - application
+            - chain
+        request_effect_id:
+          type: integer
+          format: int64
+          nullable: true
+        request_controller:
+          $ref: '#/components/schemas/VaultRequestController'
+        price_source:
+          type: string
+          nullable: true
+          enum:
+            - offer_deck
+            - finalized_nav
+            - chain_forward_nav
+        price_usdc_raw:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RawUint256'
+        nav_record_id:
+          type: integer
+          format: int64
+          nullable: true
+        nav_version:
+          type: integer
+          format: int64
+          nullable: true
+        priced_at:
+          type: string
+          format: date-time
+          nullable: true
+        custody:
+          $ref: '#/components/schemas/VaultCustody'
+        request_locked_at:
+          type: string
+          format: date-time
+          nullable: true
+        asset_amount_raw:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RawUint256'
+        share_amount_raw:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RawUint256'
+        pending_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimable_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimable_shares_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimed_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimed_shares_raw:
+          $ref: '#/components/schemas/RawUint256'
+        controller_aggregate:
+          $ref: '#/components/schemas/VaultControllerAggregate'
+        operations:
+          $ref: '#/components/schemas/VaultOperations'
+    VaultRequestController:
+      type: object
+      additionalProperties: false
+      required:
+        - chain_account_id
+        - address
+      properties:
+        chain_account_id:
+          type: integer
+        address:
+          $ref: '#/components/schemas/EvmAddress'
+    VaultCustody:
+      type: object
+      additionalProperties: false
+      required:
+        - state
+        - wallet_address
+      properties:
+        state:
+          type: string
+          enum:
+            - unfunded
+            - funding
+            - held
+            - refunding
+            - released
+            - refunded
+        wallet_address:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/EvmAddress'
+        funded_at:
+          type: string
+          format: date-time
+          nullable: true
+        refund_locked_at:
+          type: string
+          format: date-time
+          nullable: true
+        released_at:
+          type: string
+          format: date-time
+          nullable: true
+        refunded_at:
+          type: string
+          format: date-time
+          nullable: true
+    VaultControllerAggregate:
+      type: object
+      additionalProperties: false
+      required:
+        - pending_assets_raw
+        - claimable_assets_raw
+        - unassigned_pending_assets_raw
+        - unassigned_claimable_assets_raw
+      properties:
+        pending_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimable_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+        unassigned_pending_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+        unassigned_claimable_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+    VaultOperations:
+      type: object
+      additionalProperties: false
+      properties:
+        custody_funding:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/OperationReference'
+        custody_refund:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/OperationReference'
+        approval:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/OperationReference'
+        request:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/OperationReference'
+        fulfillment:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/OperationReference'
+        claim:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/OperationReference'
+    OperationReference:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - created
+            - submitted
+            - confirmed
+            - failed
+        tx_hash:
+          type: string
+          nullable: true
+          pattern: ^0x[0-9a-f]{64}$
+    VaultPositionBalance:
+      type: object
+      additionalProperties: false
+      required:
+        - share_balance_raw
+        - historical_claimed_shares_raw
+        - available_to_redeem_shares_raw
+      properties:
+        share_balance_raw:
+          $ref: '#/components/schemas/RawUint256'
+        historical_claimed_shares_raw:
+          $ref: '#/components/schemas/RawUint256'
+        available_to_redeem_shares_raw:
+          $ref: '#/components/schemas/RawUint256'
+    VaultRedemptionLifecycle:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - request_origin
+        - pricing_status
+        - protocol_state
+        - share_amount_raw
+        - pending_shares_raw
+        - claimable_shares_raw
+        - claimable_assets_raw
+        - claimed_shares_raw
+        - claimed_assets_raw
+        - operations
+      properties:
+        id:
+          type: integer
+          format: int64
+        request_origin:
+          type: string
+          enum:
+            - application
+            - chain
+        request_effect_id:
+          type: integer
+          format: int64
+          nullable: true
+        pricing_status:
+          type: string
+          enum:
+            - awaiting_dealing_nav
+            - priced
+        protocol_state:
+          type: string
+          enum:
+            - unconfirmed
+            - pending
+            - claimable
+            - claimed
+        share_amount_raw:
+          $ref: '#/components/schemas/RawUint256'
+        pending_shares_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimable_shares_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimable_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimed_shares_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimed_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+        estimate:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RedemptionEstimate'
+        dealing_cutoff:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RedemptionDealingCutoff'
+        final:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RedemptionFinalPrice'
+        operations:
+          $ref: '#/components/schemas/VaultOperations'
+    RedemptionEstimate:
+      type: object
+      additionalProperties: false
+      required:
+        - nav_record_id
+        - nav_version
+        - nav_usdc_raw
+        - valuation_block_number
+        - valuation_as_of
+        - asset_amount_raw
+      properties:
+        nav_record_id:
+          type: integer
+          format: int64
+        nav_version:
+          type: integer
+          format: int64
+        nav_usdc_raw:
+          $ref: '#/components/schemas/RawUint256'
+        valuation_block_number:
+          $ref: '#/components/schemas/RawUint256'
+        valuation_as_of:
+          type: string
+          format: date-time
+        asset_amount_raw:
+          $ref: '#/components/schemas/RawUint256'
+    RedemptionDealingCutoff:
+      type: object
+      additionalProperties: false
+      required:
+        - block_number
+        - at
+      properties:
+        block_number:
+          $ref: '#/components/schemas/RawUint256'
+        at:
+          type: string
+          format: date-time
+    RedemptionFinalPrice:
+      type: object
+      additionalProperties: false
+      required:
+        - nav_record_id
+        - nav_version
+        - nav_usdc_raw
+        - valuation_block_number
+        - valuation_as_of
+        - asset_amount_raw
+      properties:
+        nav_record_id:
+          type: integer
+          format: int64
+        nav_version:
+          type: integer
+          format: int64
+        nav_usdc_raw:
+          $ref: '#/components/schemas/RawUint256'
+        valuation_block_number:
+          $ref: '#/components/schemas/RawUint256'
+        valuation_as_of:
+          type: string
+          format: date-time
+        asset_amount_raw:
+          $ref: '#/components/schemas/RawUint256'
+        delta_from_estimate_raw:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RawSignedInteger'
+    RawSignedInteger:
+      type: string
+      pattern: ^-?[0-9]+$
+      description: Lossless signed base-10 integer JSON string.
+      example: '-2000000'
+    InvestmentListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestmentDetail'
+        count:
+          type: integer
+          example: 1
+      additionalProperties: false
+      example:
+        data:
+          - id: 123
+            offer:
+              id: 77
+              name: Oncolyze Series A
+              legal_name: Oncolyze, Inc.
+              slug: oncolyze
+              title: Oncolyze Series A Preferred Shares
+              security_type: preferred-equity
+              price_per_share: '25'
+              min_investment: '6.25'
+              image_link_id: 501
+              total_shares: '100000'
+              valuation: '25000000'
+              subscribed_shares: '14000'
+              confirmed_shares: '12000'
+              status: published
+              approved_at: '2026-01-15T12:00:00Z'
+              website: https://example.com/oncolyze
+              state: DE
+              city: Wilmington
+              reg_type: reg D 506(c)
+              close_at: '2026-12-31T23:59:59Z'
+              seo_title: Invest in Oncolyze
+              seo_description: Preferred equity offering for accredited investors.
+              data:
+                wire_to: Oncolyze Escrow Account
+                swift_id: EXAMPLEUS33
+                custodian: North Capital
+                account_number: '****1234'
+                routing_number: '****0210'
+              ticker: ONCL
+              tokenization_engine: ERC-3643
+              tokenization_model: issuer_sponsored_onchain_register
+              fund_structure: closed_ended
+              amount_raised: '350000'
+              target_raise: '2500000'
+            profile_id: 42
+            user_id: 7
+            price_per_share: '25'
+            number_of_shares: '0.25'
+            amount: '6.25'
+            step: review
+            status: confirmed
+            created_at: '2026-02-10T14:20:00Z'
+            submited_at: '2026-02-10T14:45:00Z'
+            funding_type: ach
+            funding_status: initialize
+            signature_data:
+              signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+              provider: hellosign
+            escrow_data:
+              provider: north_capital
+              escrow_id: esc_123
+            payment_data:
+              created_at: '2026-02-10T14:30:00Z'
+              account_type: checking
+              account_holder_name: Jane Investor
+              funding_source_id: 101
+              transaction_id: txn_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+            payment_type: north_capital
+            escrow_type: north_capital
+            entity_id: entity_123
+            transaction_ref: wire_20260210_123
+        count: 1
+    ConfirmedInvestmentListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestmentDetail'
+        count:
+          type: integer
+          example: 1
+        meta:
+          $ref: '#/components/schemas/InvestmentPortfolioMeta'
+      additionalProperties: false
+      example:
+        data:
+          - id: 123
+            offer:
+              id: 77
+              name: Oncolyze Series A
+              legal_name: Oncolyze, Inc.
+              slug: oncolyze
+              title: Oncolyze Series A Preferred Shares
+              security_type: preferred-equity
+              price_per_share: '25'
+              min_investment: '6.25'
+              image_link_id: 501
+              total_shares: '100000'
+              valuation: '25000000'
+              subscribed_shares: '14000'
+              confirmed_shares: '12000'
+              status: published
+              approved_at: '2026-01-15T12:00:00Z'
+              website: https://example.com/oncolyze
+              state: DE
+              city: Wilmington
+              reg_type: reg D 506(c)
+              close_at: '2026-12-31T23:59:59Z'
+              seo_title: Invest in Oncolyze
+              seo_description: Preferred equity offering for accredited investors.
+              data:
+                wire_to: Oncolyze Escrow Account
+                swift_id: EXAMPLEUS33
+                custodian: North Capital
+                account_number: '****1234'
+                routing_number: '****0210'
+              ticker: ONCL
+              tokenization_engine: ERC-3643
+              tokenization_model: issuer_sponsored_onchain_register
+              fund_structure: closed_ended
+              amount_raised: '350000'
+              target_raise: '2500000'
+            profile_id: 42
+            user_id: 7
+            price_per_share: '25'
+            number_of_shares: '0.25'
+            amount: '6.25'
+            step: review
+            status: confirmed
+            created_at: '2026-02-10T14:20:00Z'
+            submited_at: '2026-02-10T14:45:00Z'
+            funding_type: ach
+            funding_status: initialize
+            signature_data:
+              signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+              provider: hellosign
+            escrow_data:
+              provider: north_capital
+              escrow_id: esc_123
+            payment_data:
+              created_at: '2026-02-10T14:30:00Z'
+              account_type: checking
+              account_holder_name: Jane Investor
+              funding_source_id: 101
+              transaction_id: txn_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+            payment_type: north_capital
+            escrow_type: north_capital
+            entity_id: entity_123
+            transaction_ref: wire_20260210_123
+        count: 1
+        meta:
+          total_investments: 25000
+          total_investments_12_months: 12000
+          total_distributions: 1500
+          avarange_annual: 8.2
+    InvestmentPortfolioMeta:
+      type: object
+      properties:
+        total_investments:
+          type: number
+          example: 25000
+        total_investments_12_months:
+          type: number
+          example: 12000
+        total_distributions:
+          type: number
+          example: 1500
+        avarange_annual:
+          type: number
+          example: 8.2
+      additionalProperties: false
+    OfferInvestmentProfileListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfferInvestmentProfile'
+        count:
+          type: integer
+      additionalProperties: false
+      description: Profiles grouped with investments for a Funds Manager-owned offer.
+      example:
+        data:
+          - id: 42
+            type: individual
+            data:
+              first_name: Jane
+              last_name: Investor
+              email: jane.investor@example.com
+            kyc_id: kyc_123
+            kyc_status: approved
+            accreditation_status: approved
+            escrow_id: escrow_profile_42
+            kyc_at: '2026-01-30T09:00:00Z'
+            accreditation_at: '2026-01-31T09:00:00Z'
+            updated_at: '2026-02-10T14:45:00Z'
+            investments:
+              - id: 123
+                offer:
+                  id: 77
+                  name: Oncolyze Series A
+                  legal_name: Oncolyze, Inc.
+                  slug: oncolyze
+                  title: Oncolyze Series A Preferred Shares
+                  security_type: preferred-equity
+                  price_per_share: '25'
+                  min_investment: '6.25'
+                  image_link_id: 501
+                  total_shares: '100000'
+                  valuation: '25000000'
+                  subscribed_shares: '14000'
+                  confirmed_shares: '12000'
+                  status: published
+                  approved_at: '2026-01-15T12:00:00Z'
+                  website: https://example.com/oncolyze
+                  state: DE
+                  city: Wilmington
+                  reg_type: reg D 506(c)
+                  close_at: '2026-12-31T23:59:59Z'
+                  seo_title: Invest in Oncolyze
+                  seo_description: Preferred equity offering for accredited investors.
+                  data:
+                    wire_to: Oncolyze Escrow Account
+                    swift_id: EXAMPLEUS33
+                    custodian: North Capital
+                    account_number: '****1234'
+                    routing_number: '****0210'
+                  ticker: ONCL
+                  tokenization_engine: ERC-3643
+                  tokenization_model: issuer_sponsored_onchain_register
+                  fund_structure: closed_ended
+                  amount_raised: '350000'
+                  target_raise: '2500000'
+                profile_id: 42
+                user_id: 7
+                price_per_share: '25'
+                number_of_shares: '0.25'
+                amount: '6.25'
+                step: review
+                status: confirmed
+                created_at: '2026-02-10T14:20:00Z'
+                submited_at: '2026-02-10T14:45:00Z'
+                funding_type: ach
+                funding_status: initialize
+                signature_data:
+                  signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                  provider: hellosign
+                escrow_data:
+                  provider: north_capital
+                  escrow_id: esc_123
+                payment_data:
+                  created_at: '2026-02-10T14:30:00Z'
+                  account_type: checking
+                  account_holder_name: Jane Investor
+                  funding_source_id: 101
+                  transaction_id: txn_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+                payment_type: north_capital
+                escrow_type: north_capital
+                entity_id: entity_123
+                transaction_ref: wire_20260210_123
+        count: 1
+    OfferInvestmentProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum:
+            - individual
+            - entity
+            - trust
+            - sdira
+            - solo401k
+        data:
+          type: object
+          additionalProperties: {}
+        kyc_id:
+          type: string
+          nullable: true
+        kyc_status:
+          type: string
+          enum:
+            - new
+            - pending
+            - approved
+            - in_progress
+            - declined
+        accreditation_status:
+          type: string
+          enum:
+            - new
+            - pending
+            - info_required
+            - approved
+            - declined
+            - expired
+        escrow_id:
+          type: string
+          nullable: true
+        kyc_at:
+          type: string
+          nullable: true
+        accreditation_at:
+          type: string
+          nullable: true
+        updated_at:
+          type: string
+        investments:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestmentDetail'
+      additionalProperties: false
+      description: Investor profile and its investments for a Funds Manager-owned offer.
+      example:
+        id: 42
+        type: individual
+        data:
+          first_name: Jane
+          last_name: Investor
+          email: jane.investor@example.com
+        kyc_id: kyc_123
+        kyc_status: approved
+        accreditation_status: approved
+        escrow_id: escrow_profile_42
+        kyc_at: '2026-01-30T09:00:00Z'
+        accreditation_at: '2026-01-31T09:00:00Z'
+        updated_at: '2026-02-10T14:45:00Z'
+        investments:
+          - id: 123
+            offer:
+              id: 77
+              name: Oncolyze Series A
+              legal_name: Oncolyze, Inc.
+              slug: oncolyze
+              title: Oncolyze Series A Preferred Shares
+              security_type: preferred-equity
+              price_per_share: '25'
+              min_investment: '6.25'
+              image_link_id: 501
+              total_shares: '100000'
+              valuation: '25000000'
+              subscribed_shares: '14000'
+              confirmed_shares: '12000'
+              status: published
+              approved_at: '2026-01-15T12:00:00Z'
+              website: https://example.com/oncolyze
+              state: DE
+              city: Wilmington
+              reg_type: reg D 506(c)
+              close_at: '2026-12-31T23:59:59Z'
+              seo_title: Invest in Oncolyze
+              seo_description: Preferred equity offering for accredited investors.
+              data:
+                wire_to: Oncolyze Escrow Account
+                swift_id: EXAMPLEUS33
+                custodian: North Capital
+                account_number: '****1234'
+                routing_number: '****0210'
+              ticker: ONCL
+              tokenization_engine: ERC-3643
+              tokenization_model: issuer_sponsored_onchain_register
+              fund_structure: closed_ended
+              amount_raised: '350000'
+              target_raise: '2500000'
+            profile_id: 42
+            user_id: 7
+            price_per_share: '25'
+            number_of_shares: '0.25'
+            amount: '6.25'
+            step: review
+            status: confirmed
+            created_at: '2026-02-10T14:20:00Z'
+            submited_at: '2026-02-10T14:45:00Z'
+            funding_type: ach
+            funding_status: initialize
+            signature_data:
+              signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+              provider: hellosign
+            escrow_data:
+              provider: north_capital
+              escrow_id: esc_123
+            payment_data:
+              created_at: '2026-02-10T14:30:00Z'
+              account_type: checking
+              account_holder_name: Jane Investor
+              funding_source_id: 101
+              transaction_id: txn_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+            payment_type: north_capital
+            escrow_type: north_capital
+            entity_id: entity_123
+            transaction_ref: wire_20260210_123
+    AmountStep:
+      type: object
+      properties:
+        amount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]{1,6})?$
+        profile_id:
+          type: integer
+        funding_type:
+          type: string
+          enum:
+            - none
+            - wire
+            - ach
+            - wallet
+            - crypto_wallet
+        funding_source_id:
+          type: integer
+        payment_data:
+          type: object
+          additionalProperties: {}
+      required:
+        - funding_type
+        - amount
+        - profile_id
+      additionalProperties: false
+      description: Payload for choosing an exact USDC amount and funding source.
+      example:
+        amount: '6.25'
+        profile_id: 42
+        funding_type: ach
+        funding_source_id: 101
+    SignatureStep:
+      type: object
+      properties:
+        signature_id:
+          type: string
+          minLength: 2
+        user_browser:
+          type: string
+        ip_address:
+          type: string
+      required:
+        - signature_id
+      additionalProperties: false
+      description: Payload sent after the investor signs the investment documents.
+      example:
+        signature_id: sig_01HT9Y8N5T9A7Q6Z4K3W2V1M0N
+        user_browser: Mozilla/5.0
+        ip_address: 203.0.113.10
+    ReviewStepResponse:
+      type: object
+      properties:
+        investment:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+              example: 123
+            status:
+              type: string
+              enum:
+                - new
+                - confirmed
+                - legally_confirmed
+                - closed_successfully
+                - cancelled_during_investment
+                - cancelled_after_investment
+                - cancelled_by_manager
+                - sold
+                - exited
+                - system_error
+              example: confirmed
+          required:
+            - id
+            - status
+          additionalProperties: false
+      required:
+        - investment
+      additionalProperties: false
+      example:
+        investment:
+          id: 123
+          status: confirmed
+    EmptyResponse:
+      type: object
+      description: Empty JSON object returned after a successful update with no response payload.
+      additionalProperties: false
+      example: {}
+    PositionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - position
+      properties:
+        position:
+          type: object
+          additionalProperties: false
+          required:
+            - offer_id
+            - profile_id
+            - vault
+          properties:
+            offer_id:
+              type: integer
+            profile_id:
+              type: integer
+            vault:
+              $ref: '#/components/schemas/VaultLifecycle'
+      example:
+        position:
+          offer_id: 77
+          profile_id: 42
+          vault:
+            deployment:
+              status: confirmed
+              chain: ethereum-sepolia
+              address: '0x1111111111111111111111111111111111111111'
+              asset:
+                symbol: USDC
+                address: '0x2222222222222222222222222222222222222222'
+                decimals: 6
+              share:
+                symbol: RWA
+                address: '0x1111111111111111111111111111111111111111'
+                decimals: 18
+            deposit:
+              protocol_state: claimable
+              request_origin: application
+              request_effect_id: 9001
+              request_controller:
+                chain_account_id: 55
+                address: '0x3333333333333333333333333333333333333333'
+              price_source: finalized_nav
+              price_usdc_raw: '25000000'
+              nav_record_id: 77
+              nav_version: 4
+              priced_at: '2026-07-28T12:00:00Z'
+              custody:
+                state: released
+                wallet_address: '0x4444444444444444444444444444444444444444'
+                funded_at: '2026-07-28T11:30:00Z'
+                refund_locked_at: null
+                released_at: '2026-07-28T12:01:30Z'
+                refunded_at: null
+              request_locked_at: '2026-07-28T12:01:00Z'
+              asset_amount_raw: '25000000'
+              share_amount_raw: '1000000000000000000'
+              pending_assets_raw: '0'
+              claimable_assets_raw: '25000000'
+              claimable_shares_raw: '1000000000000000000'
+              claimed_assets_raw: '0'
+              claimed_shares_raw: '0'
+              controller_aggregate:
+                pending_assets_raw: '0'
+                claimable_assets_raw: '25000000'
+                unassigned_pending_assets_raw: '0'
+                unassigned_claimable_assets_raw: '0'
+              operations:
+                custody_funding:
+                  id: 100
+                  status: confirmed
+                  tx_hash: null
+                approval:
+                  id: 101
+                  status: confirmed
+                  tx_hash: null
+                request:
+                  id: 102
+                  status: confirmed
+                  tx_hash: null
+                fulfillment:
+                  id: 103
+                  status: confirmed
+                  tx_hash: null
+            position:
+              share_balance_raw: '1000000000000000000'
+              historical_claimed_shares_raw: '1000000000000000000'
+              available_to_redeem_shares_raw: '750000000000000000'
+            redemptions:
+              - id: 501
+                request_origin: application
+                request_effect_id: 9010
+                pricing_status: priced
+                protocol_state: pending
+                share_amount_raw: '250000000000000000'
+                pending_shares_raw: '250000000000000000'
+                claimable_shares_raw: '0'
+                claimable_assets_raw: '0'
+                claimed_shares_raw: '0'
+                claimed_assets_raw: '0'
+                estimate:
+                  nav_record_id: 77
+                  nav_version: 4
+                  nav_usdc_raw: '25000000'
+                  valuation_block_number: '9100000'
+                  valuation_as_of: '2026-07-28T12:00:00Z'
+                  asset_amount_raw: '6250000'
+                dealing_cutoff:
+                  block_number: '9100100'
+                  at: '2026-07-28T13:00:00Z'
+                final:
+                  nav_record_id: 78
+                  nav_version: 5
+                  nav_usdc_raw: '23000000'
+                  valuation_block_number: '9100200'
+                  valuation_as_of: '2026-07-28T14:00:00Z'
+                  asset_amount_raw: '5750000'
+                  delta_from_estimate_raw: '-500000'
+                operations:
+                  request:
+                    id: 201
+                    status: confirmed
+                    tx_hash: null
+    RedemptionCommandResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - redemption
+        - replayed
+      properties:
+        redemption:
+          $ref: '#/components/schemas/RedemptionDetail'
+        replayed:
+          type: boolean
+    RedemptionDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - offer_id
+        - profile_id
+        - vault_request_origin
+        - status
+        - pricing_status
+        - share_amount_raw
+        - pending_shares_raw
+        - claimable_assets_raw
+        - claimable_shares_raw
+        - claimed_assets_raw
+        - claimed_shares_raw
+        - protocol_state
+      properties:
+        id:
+          type: integer
+          format: int64
+        offer_id:
+          type: integer
+        profile_id:
+          type: integer
+        investment_id:
+          type: integer
+          nullable: true
+        vault_contract_id:
+          type: integer
+        request_controller_chain_account_id:
+          type: integer
+        request_controller_address:
+          $ref: '#/components/schemas/EvmAddress'
+        vault_request_origin:
+          type: string
+          enum:
+            - application
+            - chain
+        vault_request_effect_id:
+          type: integer
+          format: int64
+          nullable: true
+        request_effect_state:
+          type: string
+          enum:
+            - assigned
+            - unassigned
+        status:
+          type: string
+          enum:
+            - open
+            - completed
+            - cancelled
+        idempotency_key:
+          type: string
+        pricing_status:
+          type: string
+          enum:
+            - awaiting_dealing_nav
+            - priced
+        estimated_nav_record_id:
+          type: integer
+          format: int64
+          nullable: true
+        estimated_nav_usdc_raw:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RawUint256'
+        estimated_nav_version:
+          type: integer
+          format: int64
+          nullable: true
+        estimated_nav_valuation_block_number:
+          type: integer
+          format: int64
+          nullable: true
+        estimated_nav_valuation_as_of:
+          type: string
+          format: date-time
+          nullable: true
+        estimated_asset_amount_raw:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RawUint256'
+        estimated_at:
+          type: string
+          format: date-time
+          nullable: true
+        dealing_cutoff_block_number:
+          type: integer
+          format: int64
+          nullable: true
+        dealing_cutoff_at:
+          type: string
+          format: date-time
+          nullable: true
+        nav_record_id:
+          type: integer
+          format: int64
+          nullable: true
+        nav_usdc_raw:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RawUint256'
+        nav_version:
+          type: integer
+          format: int64
+          nullable: true
+        nav_valuation_block_number:
+          type: integer
+          format: int64
+          nullable: true
+        nav_valuation_as_of:
+          type: string
+          format: date-time
+          nullable: true
+        priced_at:
+          type: string
+          format: date-time
+          nullable: true
+        liquidity_shortfall_raw:
+          $ref: '#/components/schemas/RawUint256'
+        asset_amount_raw:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RawUint256'
+        share_amount_raw:
+          $ref: '#/components/schemas/RawUint256'
+        pending_shares_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimable_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimable_shares_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimed_assets_raw:
+          $ref: '#/components/schemas/RawUint256'
+        claimed_shares_raw:
+          $ref: '#/components/schemas/RawUint256'
+        transition_version:
+          type: integer
+        request_locked_at:
+          type: string
+          format: date-time
+          nullable: true
+        requested_at:
+          type: string
+          format: date-time
+          nullable: true
+        claimable_at:
+          type: string
+          format: date-time
+          nullable: true
+        claimed_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+        protocol_state:
+          type: string
+          enum:
+            - unconfirmed
+            - pending
+            - claimable
+            - claimed
+        estimate_delta_raw:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RawSignedInteger'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    RedemptionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - redemption
+      properties:
+        redemption:
+          $ref: '#/components/schemas/RedemptionDetail'
+    RedemptionListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+        - count
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RedemptionDetail'
+        count:
+          type: integer
+          minimum: 0
+    ErrorResponse:
+      type: object
+      description: >-
+        Validation, authentication, authorization, or lookup errors keyed by field name or
+        __error__.
+      additionalProperties:
+        type: array
+        items:
+          type: string
+      example:
+        __error__:
+          - unauthorized
+    ReviewStep:
+      type: object
+      properties: {}
+      additionalProperties: false
+      description: Empty payload used to confirm and submit the investment for processing.
+      example: {}
+    InvestmentCancel:
+      type: object
+      properties:
+        cancelation_reason:
+          type: string
+          minLength: 4
+          description: Human-readable reason for cancellation. Field spelling matches the current API schema.
+      required:
+        - cancelation_reason
+      additionalProperties: false
+      description: Payload for canceling a user investment.
+      example:
+        cancelation_reason: Changed investment plan
+    RedemptionCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - offer_id
+        - shares_raw
+      properties:
+        offer_id:
+          type: integer
+          minimum: 1
+        shares_raw:
+          $ref: '#/components/schemas/RawUint256'
+          example: '250000000000000000'

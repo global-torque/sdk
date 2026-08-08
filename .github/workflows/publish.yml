@@ -1,0 +1,74 @@
+name: Publish verified release to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing immutable GitHub prerelease tag, for example v0.1.0-alpha.2
+        required: true
+        type: string
+      bootstrap:
+        description: Use the temporary NPM_BOOTSTRAP_TOKEN for the package's first publication only
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.release_tag }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Download reviewed release files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          mkdir release
+          gh release download "${RELEASE_TAG}" --dir release
+      - name: Verify immutable release asset and attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          archive=$(find release -maxdepth 1 -name '*.tgz' -print -quit)
+          test -n "${archive}"
+          gh release verify "${RELEASE_TAG}"
+          gh release verify-asset "${RELEASE_TAG}" "${archive}"
+          gh attestation verify "${archive}" --repo "${GITHUB_REPOSITORY}"
+      - name: Verify exact release bundle
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          node scripts/verify-release-bundle.mjs \
+            --directory release \
+            --tag "${RELEASE_TAG}"
+      - name: Bootstrap the first publication with a temporary token
+        if: ${{ inputs.bootstrap }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
+        run: |
+          test -n "${NODE_AUTH_TOKEN}"
+          npm publish release/*.tgz --access public --provenance --tag next
+      - name: Publish exact tarball with trusted publishing
+        if: ${{ !inputs.bootstrap }}
+        run: npm publish release/*.tgz --access public --tag next
+      - name: Verify registry bytes
+        shell: bash
+        run: |
+          package_version=$(node -p "require('./package.json').version")
+          mkdir registry
+          npm pack "@global-torque/sdk@${package_version}" --pack-destination registry
+          cmp release/*.tgz registry/*.tgz

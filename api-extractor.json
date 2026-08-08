@@ -1,0 +1,30 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/api-extractor/v7/api-extractor.schema.json",
+  "newlineKind": "lf",
+  "mainEntryPointFilePath": "<projectFolder>/dist/api-report.d.ts",
+  "apiReport": {
+    "enabled": true,
+    "reportFileName": "invest-sdk.api.md",
+    "reportFolder": "<projectFolder>/etc",
+    "reportTempFolder": "<projectFolder>/temp/api-report"
+  },
+  "docModel": {
+    "enabled": false
+  },
+  "dtsRollup": {
+    "enabled": false
+  },
+  "tsdocMetadata": {
+    "enabled": false
+  },
+  "messages": {
+    "extractorMessageReporting": {
+      "ae-missing-release-tag": {
+        "logLevel": "error"
+      },
+      "ae-forgotten-export": {
+        "logLevel": "error"
+      }
+    }
+  }
+}

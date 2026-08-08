@@ -1,0 +1,6 @@
+coverage/
+dist/
+.dist-build.lock/
+node_modules/
+release/
+temp/
