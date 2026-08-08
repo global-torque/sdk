@@ -31,6 +31,7 @@ jobs:
         run: |
           if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
             release_tag="${GITHUB_REF_NAME#publish-}"
+            release_tag="${release_tag%%-attempt*}"
           else
             release_tag="${DISPATCH_TAG}"
           fi
@@ -72,10 +73,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
         run: |
           test -n "${NODE_AUTH_TOKEN}"
-          npm publish release/*.tgz --access public --provenance --tag next
+          npm publish ./release/*.tgz --access public --provenance --tag next
       - name: Publish exact tarball with trusted publishing
         if: ${{ github.event_name != 'push' && !inputs.bootstrap }}
-        run: npm publish release/*.tgz --access public --tag next
+        run: npm publish ./release/*.tgz --access public --tag next
       - name: Verify registry bytes
         shell: bash
         run: |
