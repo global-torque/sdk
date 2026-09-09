@@ -1,10 +1,78 @@
 # Changelog
 
 All notable public changes are recorded here. The package follows semantic
-versioning after `1.0`; alpha releases may contain breaking API changes.
+versioning. Before `1.0`, breaking API changes require a new minor version;
+patch releases preserve the supported API.
 
-## Unreleased
+## 0.2.0 - 2026-09-09
 
+- Use ordinary semantic versions on `latest`; GitHub release creation no
+  longer marks ordinary versions as prereleases. Legacy alpha artifacts retain
+  their existing `next` channel and immutable verification controls.
+
+- Added awaited host evidence hooks to the sponsored-call executor:
+  `onSubmissionEvidence` runs after the accepted provider call ID is persisted
+  and before any confirmation wait (including on every resume), and
+  `onReceiptEvidence` runs after the receipt hash is validated and before the
+  host postcondition or pending-store cleanup. A hook failure raises the new
+  retryable `SponsoredCallEvidenceError` (see `isSponsoredCallEvidenceError`),
+  leaves pending state intact, and is never treated as a provider-terminal
+  failure. Endpoint construction and authentication stay with the host.
+- Added explicit Fetch cache-mode forwarding so invitation preview and
+  acceptance consumers can preserve `no-store` without adding SDK-owned cache
+  persistence policy.
+
+## 0.2.0-alpha.1 - 2026-08-14
+
+- **Breaking:** generated resource response validators are forward-compatible
+  by default and expose `.exact` for opt-in pinned-contract canaries. Additive
+  fields and unknown non-blank string enum values are preserved, while relied-upon
+  structure and financial values remain fail-closed.
+- **Breaking:** `createFilerResource` requires keyless signed-download and
+  public-download clients. Authenticated downloads now obtain a signed URL
+  first and fetch it without application or user credentials.
+- Added typed custom Authorization strategies, `HEAD`, raw `OPTIONS` defaults,
+  `SdkConflictError` for HTTP 409, full Fetch-visible error headers, bounded
+  response-validation diagnostics, cross-realm Fetch body support, and Node
+  request-stream `duplex: 'half'` handling.
+- Added a default 16 MiB bound, configurable up to 512 MiB, for successful
+  JSON/text bodies and transport-verified keyless service clients for
+  credential-separated flows. Binary response modes remain uncapped by this
+  text-body limit.
+- Made runtime service and authentication configuration fail closed instead of
+  silently downgrading malformed strategies to anonymous requests.
+- Applied exact sponsored-call intent checks to direct and zero-value legacy
+  Turnkey signing paths and removed coercive EIP-7702 chain comparison.
+- **Breaking:** replaced `SdkHttpError.details` with the non-enumerable
+  `responseBody` property. Bounded JSON and text error bodies are now preserved
+  as untrusted application-protocol data instead of being destructively
+  sanitized during transport parsing.
+- **Breaking:** removed `allowedRedirectOrigins` from `SdkServiceConfig` and
+  removed the Ory-specific error-body sanitizer. Fetch redirect policy remains
+  transport-owned; endpoint-specific navigation and telemetry redaction remain
+  host responsibilities.
+- Kept malformed, truncated, and empty HTTP error bodies fail-closed through
+  `bodyKind` without fabricating protocol fields.
+
+- Added synchronously validated `./resources/users`, `./resources/profiles`,
+  `./resources/invitations`, `./resources/fund-manager`, `./resources/filer`,
+  `./resources/distributions`, and `./resources/forms` subpaths from the
+  immutable first-party contract source lock. Ory settings remain excluded.
+- Added deterministic OpenAPI normalization for legacy path parameters,
+  definitions/references, request/response schemas, and security declarations,
+  with fail-closed semantic-preservation and provenance evidence.
+- Pinned the workspace's backend-owned source as the authoritative first-party
+  contract input and added exact revision/digest, operation, auth, deployment,
+  live-operation reconciliation, and fail-closed resource-export admission
+  evidence while retaining the four current resource paths as measured legacy
+  migration exemptions.
+- Extended packed-artifact verification to reject upper-layer SDK-family,
+  application/private, framework, runtime, workspace, and ambient-environment
+  coupling and to typecheck/import every public subpath from separate clean npm
+  and pnpm consumers.
+- Added immutable `SdkResult.metadata` with correlation, attempt, and typed
+  response provenance plus an injected synchronous response-source classifier;
+  the SDK still owns no storage, consent, service-worker, route, or UI policy.
 - Renamed the public package identity from `@global-torque/invest-sdk` to
   `@global-torque/sdk` and updated workspace consumers and artifact gates.
 - Added contract-validated `./resources/investments` reads and mutations while

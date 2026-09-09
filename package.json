@@ -1,7 +1,7 @@
 {
   "name": "@global-torque/sdk",
   "private": false,
-  "version": "0.1.0-alpha.3",
+  "version": "0.2.0",
   "description": "Framework-free investment resources, transport, and injected EVM wallet building blocks.",
   "keywords": [
     "eip-7702",
@@ -17,18 +17,17 @@
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@10.34.5",
   "sideEffects": false,
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "pnpm run contracts:check && node scripts/build.mjs",
-    "contracts:generate": "node scripts/generate-contract-resources.mjs",
-    "contracts:check": "node scripts/generate-contract-resources.mjs --check",
+    "build": "node scripts/build.mjs",
     "lint": "eslint --max-warnings=0 src scripts vitest.config.ts",
     "format:check": "prettier --check \"src/**/*.ts\" \"scripts/**/*.mjs\" \"*.{json,md}\"",
     "format:write": "prettier --write \"src/**/*.ts\" \"scripts/**/*.mjs\" \"*.{json,md}\"",
     "docs:check": "node scripts/check-docs.mjs",
-    "test:run": "vitest run && pnpm run test:build-atomic",
+    "test:run": "vitest run && pnpm run test:packed-policy && pnpm run test:build-atomic",
+    "test:packed-policy": "node --test scripts/packed-policy.node-test.mjs",
     "test:build-atomic": "node scripts/verify-generation-publication.mjs",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -75,7 +74,7 @@
   "publishConfig": {
     "access": "public",
     "provenance": true,
-    "tag": "next"
+    "tag": "latest"
   },
   "files": [
     "dist",
@@ -87,7 +86,6 @@
     "MIGRATION.md",
     "SECURITY.md",
     "SUPPORT.md",
-    "CONTRACTS.md",
     "etc/invest-sdk.api.md"
   ],
   "main": "./dist/index.js",
@@ -113,6 +111,38 @@
       "types": "./dist/resources/evm.d.ts",
       "import": "./dist/resources/evm.js"
     },
+    "./resources/analytics": {
+      "types": "./dist/resources/analytics.d.ts",
+      "import": "./dist/resources/analytics.js"
+    },
+    "./resources/distributions": {
+      "types": "./dist/resources/distributions.d.ts",
+      "import": "./dist/resources/distributions.js"
+    },
+    "./resources/esign": {
+      "types": "./dist/resources/esign.d.ts",
+      "import": "./dist/resources/esign.js"
+    },
+    "./resources/filer": {
+      "types": "./dist/resources/filer.d.ts",
+      "import": "./dist/resources/filer.js"
+    },
+    "./resources/forms": {
+      "types": "./dist/resources/forms.d.ts",
+      "import": "./dist/resources/forms.js"
+    },
+    "./resources/fund-manager": {
+      "types": "./dist/resources/fund-manager.d.ts",
+      "import": "./dist/resources/fund-manager.js"
+    },
+    "./resources/invitations": {
+      "types": "./dist/resources/invitations.d.ts",
+      "import": "./dist/resources/invitations.js"
+    },
+    "./resources/notifications": {
+      "types": "./dist/resources/notifications.d.ts",
+      "import": "./dist/resources/notifications.js"
+    },
     "./resources/offers": {
       "types": "./dist/resources/offers.d.ts",
       "import": "./dist/resources/offers.js"
@@ -120,6 +150,14 @@
     "./resources/investments": {
       "types": "./dist/resources/investments.d.ts",
       "import": "./dist/resources/investments.js"
+    },
+    "./resources/profiles": {
+      "types": "./dist/resources/profiles.d.ts",
+      "import": "./dist/resources/profiles.js"
+    },
+    "./resources/users": {
+      "types": "./dist/resources/users.d.ts",
+      "import": "./dist/resources/users.js"
     },
     "./resources/vault": {
       "types": "./dist/resources/vault.d.ts",

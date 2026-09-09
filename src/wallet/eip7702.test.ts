@@ -164,6 +164,16 @@ describe('assertSafeEip7702PreparedCalls', () => {
       },
     ],
     [
+      'coercive string chain',
+      {
+        ...safePreparedCalls(),
+        data: safePreparedCalls().data.map((entry) => ({
+          ...(entry as Record<string, unknown>),
+          chainId: String(ETHEREUM_SEPOLIA_CHAIN_ID),
+        })),
+      },
+    ],
+    [
       'wrong delegate',
       {
         ...safePreparedCalls(),

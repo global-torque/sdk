@@ -4,6 +4,7 @@ import {
   SdkAuthenticationError,
   SdkAuthorizationError,
   SdkConfigurationError,
+  SdkConflictError,
   SdkHttpError,
   SdkNetworkError,
   SdkRateLimitError,
@@ -11,23 +12,26 @@ import {
   SdkResponseValidationError,
   SdkTimeoutError,
   SdkValidationError,
+  type SdkDiagnosticErrorContext,
   type SdkErrorContext,
+  type SdkHttpErrorContext,
 } from './errors.js';
-import { sanitizeErrorDetails } from './sanitize.js';
 import type {
   InvestSdkTransport,
   InvestSdkTransportConfig,
   SdkConvenienceRequestOptions,
   SdkDiagnosticEvent,
   SdkErrorBodyKind,
+  SdkHooks,
   SdkHttpMethod,
+  SdkKeylessServiceClient,
   SdkOptionsRequestOptions,
   SdkRequestInput,
   SdkResponseData,
   SdkResponseMode,
   SdkResponseValidator,
   SdkResult,
-  SdkRetryPolicy,
+  SdkResultSource,
   SdkSleep,
   SdkServiceClient,
   SdkServiceConfig,
@@ -43,6 +47,8 @@ const IDEMPOTENCY_KEY_HEADER = 'Idempotency-Key';
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_ERROR_BODY_BYTES = 64 * 1024;
 const MAX_ERROR_BODY_BYTES = 1024 * 1024;
+const DEFAULT_MAX_TEXT_RESPONSE_BODY_BYTES = 16 * 1024 * 1024;
+const MAX_TEXT_RESPONSE_BODY_BYTES = 512 * 1024 * 1024;
 const MAX_RETRIES = 5;
 const MAX_RETRY_DELAY_MS = 30_000;
 const MAX_REQUEST_ID_LENGTH = 256;
@@ -50,6 +56,7 @@ const MAX_IDEMPOTENCY_KEY_LENGTH = 256;
 const DIAGNOSTIC_IDENTIFIER_PATTERN = /^[a-z0-9][a-z0-9._:-]{0,159}$/iu;
 const HTTP_METHODS: ReadonlySet<string> = new Set([
   'GET',
+  'HEAD',
   'OPTIONS',
   'POST',
   'PUT',
@@ -63,6 +70,19 @@ const RESPONSE_MODES: ReadonlySet<string> = new Set([
   'blob',
   'arrayBuffer',
 ]);
+const RESULT_SOURCES: ReadonlySet<string> = new Set(['network', 'offline-cache', 'unknown']);
+const runtimeKeylessServiceClientProof = Symbol('SdkKeylessServiceClientProof');
+
+/** @internal */
+export const isSdkKeylessServiceClient = (value: unknown): value is SdkKeylessServiceClient => {
+  if (value === null || typeof value !== 'object') return false;
+  try {
+    const proof = (value as Record<PropertyKey, unknown>)[runtimeKeylessServiceClientProof];
+    return typeof proof === 'function' && proof.call(value) === true;
+  } catch {
+    return false;
+  }
+};
 
 type AbortKind = 'caller' | 'disposed' | 'timeout';
 
@@ -76,13 +96,11 @@ interface NormalizedService {
   applicationAuth: 'api-key' | 'none';
   headerPolicy: 'standard' | 'minimal' | 'caller';
   redirectPolicy: 'error' | 'follow';
-  allowedRedirectOrigins: ReadonlySet<string>;
   auth: SdkUserAuthStrategy;
 }
 
 interface ParsedResponse {
-  value: unknown;
-  parseFailed: boolean;
+  responseBody: unknown;
   bodyKind: SdkErrorBodyKind;
 }
 
@@ -113,6 +131,7 @@ interface NormalizedRetryPolicy {
 }
 
 class TokenResolutionAbortedError extends Error {}
+class SuccessBodyLimitError extends Error {}
 
 const isRequestAborted = (active: ActiveRequest) => active.controller.signal.aborted;
 
@@ -122,45 +141,53 @@ const failConfiguration = (code: string, message: string): never => {
   throw new SdkConfigurationError(code, message);
 };
 
-const normalizeNonNegativeInteger = (
-  value: number | undefined,
-  fallback: number,
-  field: string,
-) => {
-  const candidate = value ?? fallback;
-  if (!Number.isInteger(candidate) || candidate < 0 || candidate > MAX_RETRIES) {
+const normalizeNonNegativeInteger = (value: unknown, fallback: number, field: string): number => {
+  const candidate = value === undefined ? fallback : value;
+  if (
+    typeof candidate !== 'number' ||
+    !Number.isInteger(candidate) ||
+    candidate < 0 ||
+    candidate > MAX_RETRIES
+  ) {
     failConfiguration(
       'SDK_RETRY_POLICY_INVALID',
       `${field} must be an integer from 0 through ${String(MAX_RETRIES)}.`,
     );
   }
-  return candidate;
+  return candidate as number;
 };
 
-const normalizeDelay = (value: number | undefined, fallback: number) => {
-  const candidate = value ?? fallback;
-  if (!Number.isFinite(candidate) || candidate < 0 || candidate > MAX_RETRY_DELAY_MS) {
+const normalizeDelay = (value: unknown, fallback: number): number => {
+  const candidate = value === undefined ? fallback : value;
+  if (
+    typeof candidate !== 'number' ||
+    !Number.isFinite(candidate) ||
+    candidate < 0 ||
+    candidate > MAX_RETRY_DELAY_MS
+  ) {
     failConfiguration(
       'SDK_RETRY_POLICY_INVALID',
       `retry.delayMs must be from 0 through ${String(MAX_RETRY_DELAY_MS)}.`,
     );
   }
-  return candidate;
+  return candidate as number;
 };
 
-const normalizeJitterRatio = (value: number | undefined, fallback: number) => {
-  const candidate = value ?? fallback;
-  if (!Number.isFinite(candidate) || candidate < 0 || candidate > 1) {
+const normalizeJitterRatio = (value: unknown, fallback: number): number => {
+  const candidate = value === undefined ? fallback : value;
+  if (
+    typeof candidate !== 'number' ||
+    !Number.isFinite(candidate) ||
+    candidate < 0 ||
+    candidate > 1
+  ) {
     failConfiguration('SDK_RETRY_POLICY_INVALID', 'retry.jitterRatio must be from 0 through 1.');
   }
-  return candidate;
+  return candidate as number;
 };
 
-const normalizeBackoff = (
-  value: SdkRetryPolicy['backoff'],
-  fallback: 'constant' | 'exponential',
-) => {
-  const candidate: unknown = value ?? fallback;
+const normalizeBackoff = (value: unknown, fallback: 'constant' | 'exponential') => {
+  const candidate: unknown = value === undefined ? fallback : value;
   if (candidate !== 'constant' && candidate !== 'exponential') {
     return failConfiguration(
       'SDK_RETRY_POLICY_INVALID',
@@ -170,73 +197,120 @@ const normalizeBackoff = (
   return candidate;
 };
 
-const normalizeRetryableStatuses = (
-  value: readonly number[] | undefined,
-  fallback: ReadonlySet<number>,
-) => {
+const normalizeRetryableStatuses = (value: unknown, fallback: ReadonlySet<number>) => {
   if (value === undefined) return new Set(fallback);
+  if (!Array.isArray(value)) {
+    failConfiguration(
+      'SDK_RETRY_POLICY_INVALID',
+      'retry.retryableStatuses must be an array of HTTP statuses.',
+    );
+  }
   const statuses = new Set<number>();
-  for (const status of value) {
-    if (!Number.isInteger(status) || status < 400 || status > 599) {
+  for (const status of value as unknown[]) {
+    if (typeof status !== 'number' || !Number.isInteger(status) || status < 400 || status > 599) {
       failConfiguration(
         'SDK_RETRY_POLICY_INVALID',
         'retry.retryableStatuses must contain only integer HTTP statuses from 400 through 599.',
       );
     }
-    statuses.add(status);
+    statuses.add(status as number);
   }
   return statuses;
 };
 
 const normalizeTimeout = (
-  value: number | null | undefined,
+  value: unknown,
   fallback: number | null = DEFAULT_TIMEOUT_MS,
-) => {
+): number | null => {
   const candidate = value === undefined ? fallback : value;
   if (candidate === null) return null;
-  if (!Number.isFinite(candidate) || candidate <= 0) {
+  if (typeof candidate !== 'number' || !Number.isFinite(candidate) || candidate <= 0) {
     failConfiguration('SDK_TIMEOUT_INVALID', 'timeoutMs must be a positive number or null.');
   }
-  return candidate;
+  return candidate as number;
 };
 
-const normalizeMaxErrorBodyBytes = (value: number | undefined) => {
-  const candidate = value ?? DEFAULT_MAX_ERROR_BODY_BYTES;
-  if (!Number.isInteger(candidate) || candidate <= 0 || candidate > MAX_ERROR_BODY_BYTES) {
+const normalizeMaxErrorBodyBytes = (value: unknown): number => {
+  const candidate = value === undefined ? DEFAULT_MAX_ERROR_BODY_BYTES : value;
+  if (
+    typeof candidate !== 'number' ||
+    !Number.isInteger(candidate) ||
+    candidate <= 0 ||
+    candidate > MAX_ERROR_BODY_BYTES
+  ) {
     failConfiguration(
       'SDK_ERROR_BODY_LIMIT_INVALID',
       `maxErrorBodyBytes must be an integer from 1 through ${String(MAX_ERROR_BODY_BYTES)}.`,
     );
   }
-  return candidate;
+  return candidate as number;
+};
+
+const normalizeMaxTextResponseBodyBytes = (value: unknown) => {
+  const candidate = value === undefined ? DEFAULT_MAX_TEXT_RESPONSE_BODY_BYTES : value;
+  if (
+    typeof candidate !== 'number' ||
+    !Number.isInteger(candidate) ||
+    candidate <= 0 ||
+    candidate > MAX_TEXT_RESPONSE_BODY_BYTES
+  ) {
+    failConfiguration(
+      'SDK_RESPONSE_BODY_LIMIT_INVALID',
+      `maxTextResponseBodyBytes must be an integer from 1 through ${String(MAX_TEXT_RESPONSE_BODY_BYTES)}.`,
+    );
+  }
+  return candidate as number;
+};
+
+const normalizeRetryRecord = (value: unknown, field: string): Record<string, unknown> => {
+  if (value === undefined) return {};
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    failConfiguration('SDK_RETRY_POLICY_INVALID', `${field} must be an object.`);
+  }
+  return value as Record<string, unknown>;
 };
 
 const normalizeRetry = (
-  requestPolicy: SdkRetryPolicy | undefined,
-  instancePolicy: SdkRetryPolicy | NormalizedRetryPolicy | undefined,
+  requestPolicyValue: unknown,
+  instancePolicyValue: unknown,
+  instanceIsNormalized = false,
 ): NormalizedRetryPolicy => {
-  const instanceStatuses = instancePolicy?.retryableStatuses;
+  const requestPolicy = normalizeRetryRecord(requestPolicyValue, 'retry');
+  const instancePolicy = normalizeRetryRecord(instancePolicyValue, 'retry');
+  const instanceStatuses = instancePolicy.retryableStatuses;
   const fallbackStatuses =
     instanceStatuses instanceof Set
-      ? instanceStatuses
-      : normalizeRetryableStatuses(instanceStatuses as readonly number[] | undefined, new Set());
-  const instanceBackoff = normalizeBackoff(instancePolicy?.backoff, 'constant');
-  const instanceJitter = normalizeJitterRatio(instancePolicy?.jitterRatio, 0);
+      ? instanceIsNormalized
+        ? instanceStatuses
+        : failConfiguration(
+            'SDK_RETRY_POLICY_INVALID',
+            'retry.retryableStatuses must be an array of HTTP statuses.',
+          )
+      : normalizeRetryableStatuses(instanceStatuses, new Set());
+  const instanceBackoff = normalizeBackoff(instancePolicy.backoff, 'constant');
+  const instanceJitter = normalizeJitterRatio(instancePolicy.jitterRatio, 0);
+  for (const policy of [instancePolicy, requestPolicy]) {
+    if (policy.respectRetryAfter !== undefined && typeof policy.respectRetryAfter !== 'boolean') {
+      failConfiguration('SDK_RETRY_POLICY_INVALID', 'retry.respectRetryAfter must be a boolean.');
+    }
+  }
   return {
     maxRetries: normalizeNonNegativeInteger(
-      requestPolicy?.maxRetries,
-      normalizeNonNegativeInteger(instancePolicy?.maxRetries, 0, 'retry.maxRetries'),
+      requestPolicy.maxRetries,
+      normalizeNonNegativeInteger(instancePolicy.maxRetries, 0, 'retry.maxRetries'),
       'retry.maxRetries',
     ),
-    delayMs: normalizeDelay(requestPolicy?.delayMs, normalizeDelay(instancePolicy?.delayMs, 0)),
-    backoff: normalizeBackoff(requestPolicy?.backoff, instanceBackoff),
-    jitterRatio: normalizeJitterRatio(requestPolicy?.jitterRatio, instanceJitter),
+    delayMs: normalizeDelay(requestPolicy.delayMs, normalizeDelay(instancePolicy.delayMs, 0)),
+    backoff: normalizeBackoff(requestPolicy.backoff, instanceBackoff),
+    jitterRatio: normalizeJitterRatio(requestPolicy.jitterRatio, instanceJitter),
     retryableStatuses: normalizeRetryableStatuses(
-      requestPolicy?.retryableStatuses,
+      requestPolicy.retryableStatuses,
       fallbackStatuses,
     ),
     respectRetryAfter:
-      requestPolicy?.respectRetryAfter ?? instancePolicy?.respectRetryAfter ?? true,
+      (requestPolicy.respectRetryAfter as boolean | undefined) ??
+      (instancePolicy.respectRetryAfter as boolean | undefined) ??
+      true,
   };
 };
 
@@ -248,34 +322,39 @@ const hasInvalidHeaderCharacters = (value: string, rejectSpaces: boolean) => {
   return false;
 };
 
-const validateApiKey = (apiKey: string | undefined, required: boolean) => {
+const validateApiKey = (apiKey: unknown, required: boolean) => {
   if (apiKey === undefined) {
     if (required) {
       failConfiguration('SDK_API_KEY_MISSING', 'apiKey is required.');
     }
     return undefined;
   }
-  if (!apiKey.trim()) {
+  if (typeof apiKey !== 'string') {
+    failConfiguration('SDK_API_KEY_INVALID_FORMAT', 'apiKey must be a string.');
+  }
+  const key = apiKey as string;
+  if (!key.trim()) {
     failConfiguration('SDK_API_KEY_MISSING', 'apiKey is required.');
   }
-  if (apiKey.length > 512 || hasInvalidHeaderCharacters(apiKey, true)) {
+  if (key.length > 512 || hasInvalidHeaderCharacters(key, true)) {
     failConfiguration(
       'SDK_API_KEY_INVALID_FORMAT',
       'apiKey must be a header-safe value no longer than 512 characters.',
     );
   }
-  return apiKey;
+  return key;
 };
 
-const validateIdempotencyKey = (value: string | undefined, method: SdkHttpMethod) => {
+const validateIdempotencyKey = (value: unknown, method: SdkHttpMethod) => {
   if (value === undefined) return undefined;
-  if (method === 'GET' || method === 'OPTIONS') {
+  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
     failConfiguration(
       'SDK_IDEMPOTENCY_KEY_NOT_ALLOWED',
       'idempotencyKey is available only for mutation requests.',
     );
   }
   if (
+    typeof value !== 'string' ||
     !value ||
     value.length > MAX_IDEMPOTENCY_KEY_LENGTH ||
     hasInvalidHeaderCharacters(value, true)
@@ -285,36 +364,44 @@ const validateIdempotencyKey = (value: string | undefined, method: SdkHttpMethod
       'idempotencyKey must be a non-empty header-safe value no longer than 256 characters.',
     );
   }
-  return value;
+  return value as string;
 };
 
-const validateDiagnosticIdentifier = (value: string, field: string) => {
-  if (!DIAGNOSTIC_IDENTIFIER_PATTERN.test(value)) {
+const validateDiagnosticIdentifier = (value: unknown, field: string): string => {
+  if (typeof value !== 'string' || !DIAGNOSTIC_IDENTIFIER_PATTERN.test(value)) {
     failConfiguration(
       'SDK_DIAGNOSTIC_IDENTIFIER_INVALID',
       `${field} must be a bounded non-secret identifier.`,
     );
   }
-  return value;
+  return value as string;
 };
 
-const normalizeAllowedInsecureOrigins = (origins: readonly string[] | undefined) => {
+const normalizeAllowedInsecureOrigins = (origins: unknown) => {
   const normalized = new Set<string>();
-  for (const origin of origins ?? []) {
+  if (origins !== undefined && !Array.isArray(origins)) {
+    failConfiguration('SDK_ORIGIN_INVALID', 'allowInsecureOrigins must be an array of strings.');
+  }
+  for (const candidate of (origins ?? []) as unknown[]) {
+    const origin: unknown = candidate;
+    if (typeof origin !== 'string') {
+      failConfiguration('SDK_ORIGIN_INVALID', 'allowInsecureOrigins must contain only strings.');
+    }
+    const originString = origin as string;
     const url = (() => {
       try {
-        return new URL(origin);
+        return new URL(originString);
       } catch {
         return failConfiguration(
           'SDK_ORIGIN_INVALID',
-          `Invalid insecure development origin: ${origin}`,
+          `Invalid insecure development origin: ${originString}`,
         );
       }
     })();
-    if (url.protocol !== 'http:' || url.origin !== origin.replace(/\/$/u, '')) {
+    if (url.protocol !== 'http:' || url.origin !== originString.replace(/\/$/u, '')) {
       failConfiguration(
         'SDK_ORIGIN_INVALID',
-        `Insecure development origins must be exact HTTP origins: ${origin}`,
+        `Insecure development origins must be exact HTTP origins: ${originString}`,
       );
     }
     normalized.add(url.origin);
@@ -322,14 +409,33 @@ const normalizeAllowedInsecureOrigins = (origins: readonly string[] | undefined)
   return normalized;
 };
 
-const normalizeServices = (
-  services: Readonly<Record<string, SdkServiceConfig>>,
-  allowedInsecureOrigins: ReadonlySet<string>,
-) => {
+const normalizeServices = (services: unknown, allowedInsecureOrigins: ReadonlySet<string>) => {
+  if (
+    services === undefined ||
+    services === null ||
+    typeof services !== 'object' ||
+    Array.isArray(services)
+  ) {
+    failConfiguration('SDK_SERVICES_MISSING', 'services must be a non-empty service record.');
+  }
+  const serviceRecord = services as Readonly<Record<string, unknown>>;
   const normalized = new Map<string, NormalizedService>();
-  for (const [name, service] of Object.entries(services)) {
+  for (const [name, candidate] of Object.entries(serviceRecord)) {
     validateDiagnosticIdentifier(name, 'Service name');
+    if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) {
+      failConfiguration(
+        'SDK_SERVICE_CONFIG_INVALID',
+        `Service ${name} configuration must be an object.`,
+      );
+    }
+    const service = candidate as SdkServiceConfig;
 
+    if (typeof service.baseUrl !== 'string' || !service.baseUrl) {
+      failConfiguration(
+        'SDK_SERVICE_URL_INVALID',
+        `Service ${name} must provide a string baseUrl.`,
+      );
+    }
     const baseUrl = (() => {
       try {
         return new URL(service.baseUrl);
@@ -402,58 +508,104 @@ const normalizeServices = (
         `Service ${name} may use minimal headers only with keyless, no-user-auth requests.`,
       );
     }
-    const allowedRedirectOrigins = new Set<string>();
-    for (const origin of service.allowedRedirectOrigins ?? []) {
-      let redirectOrigin: URL;
-      try {
-        redirectOrigin = new URL(origin);
-      } catch {
-        return failConfiguration(
-          'SDK_REDIRECT_ORIGIN_INVALID',
-          `Service ${name} has an invalid allowed redirect origin.`,
-        );
-      }
-      if (
-        redirectOrigin.origin !== origin.replace(/\/$/u, '') ||
-        (redirectOrigin.protocol !== 'https:' && !allowedInsecureOrigins.has(redirectOrigin.origin))
-      ) {
-        failConfiguration(
-          'SDK_REDIRECT_ORIGIN_INVALID',
-          `Service ${name} redirect origins must be exact HTTPS origins or approved local HTTP origins.`,
-        );
-      }
-      allowedRedirectOrigins.add(redirectOrigin.origin);
+    // Explicit null is invalid and must not silently select the omitted-field default.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    const auth: unknown = service.auth === undefined ? { kind: 'none' } : service.auth;
+    if (auth === null || typeof auth !== 'object' || Array.isArray(auth)) {
+      failConfiguration('SDK_AUTH_INVALID', `Service ${name} has an invalid auth strategy.`);
     }
-    const auth = service.auth ?? { kind: 'none' };
+    const authRecord = auth as Record<string, unknown>;
+    if (
+      typeof authRecord.kind !== 'string' ||
+      !['none', 'cookie', 'bearer', 'authorization'].includes(authRecord.kind)
+    ) {
+      failConfiguration('SDK_AUTH_KIND_INVALID', `Service ${name} has an unsupported auth kind.`);
+    }
+    const credentials = authRecord.credentials;
+    if (
+      credentials !== undefined &&
+      credentials !== 'omit' &&
+      credentials !== 'same-origin' &&
+      credentials !== 'include'
+    ) {
+      failConfiguration(
+        'SDK_AUTH_CREDENTIALS_INVALID',
+        `Service ${name} has invalid auth credentials.`,
+      );
+    }
+    if (authRecord.kind === 'cookie' && credentials === 'omit') {
+      failConfiguration(
+        'SDK_AUTH_CREDENTIALS_INVALID',
+        `Service ${name} cookie auth cannot omit credentials.`,
+      );
+    }
+    if (
+      authRecord.deduplicationScope !== undefined &&
+      typeof authRecord.deduplicationScope !== 'function'
+    ) {
+      failConfiguration(
+        'SDK_AUTH_SCOPE_INVALID',
+        `Service ${name} auth deduplicationScope must be a function.`,
+      );
+    }
+    if (authRecord.kind === 'bearer' && typeof authRecord.getToken !== 'function') {
+      failConfiguration(
+        'SDK_BEARER_TOKEN_RESOLVER_MISSING',
+        `Service ${name} bearer auth requires getToken.`,
+      );
+    }
+    if (authRecord.kind === 'authorization' && typeof authRecord.getAuthorization !== 'function') {
+      failConfiguration(
+        'SDK_AUTHORIZATION_RESOLVER_MISSING',
+        `Service ${name} authorization auth requires getAuthorization.`,
+      );
+    }
     const normalizedAuth: SdkUserAuthStrategy = (() => {
-      if (auth.kind === 'bearer') {
+      const validatedAuth = auth as SdkUserAuthStrategy;
+      if (validatedAuth.kind === 'bearer') {
         const bearer =
-          auth.credentials === undefined
-            ? { kind: auth.kind, getToken: auth.getToken }
-            : { kind: auth.kind, getToken: auth.getToken, credentials: auth.credentials };
-        return auth.deduplicationScope === undefined
+          validatedAuth.credentials === undefined
+            ? { kind: validatedAuth.kind, getToken: validatedAuth.getToken }
+            : {
+                kind: validatedAuth.kind,
+                getToken: validatedAuth.getToken,
+                credentials: validatedAuth.credentials,
+              };
+        return validatedAuth.deduplicationScope === undefined
           ? bearer
-          : { ...bearer, deduplicationScope: auth.deduplicationScope };
+          : { ...bearer, deduplicationScope: validatedAuth.deduplicationScope };
       }
-      if (auth.kind === 'cookie') {
+      if (validatedAuth.kind === 'authorization') {
+        const authorization =
+          validatedAuth.credentials === undefined
+            ? { kind: validatedAuth.kind, getAuthorization: validatedAuth.getAuthorization }
+            : {
+                kind: validatedAuth.kind,
+                getAuthorization: validatedAuth.getAuthorization,
+                credentials: validatedAuth.credentials,
+              };
+        return validatedAuth.deduplicationScope === undefined
+          ? authorization
+          : { ...authorization, deduplicationScope: validatedAuth.deduplicationScope };
+      }
+      if (validatedAuth.kind === 'cookie') {
         const cookie =
-          auth.credentials === undefined
+          validatedAuth.credentials === undefined
             ? { kind: 'cookie' as const }
-            : { kind: 'cookie' as const, credentials: auth.credentials };
-        return auth.deduplicationScope === undefined
+            : { kind: 'cookie' as const, credentials: validatedAuth.credentials };
+        return validatedAuth.deduplicationScope === undefined
           ? cookie
-          : { ...cookie, deduplicationScope: auth.deduplicationScope };
+          : { ...cookie, deduplicationScope: validatedAuth.deduplicationScope };
       }
-      return auth.credentials === undefined
+      return validatedAuth.credentials === undefined
         ? { kind: 'none' }
-        : { kind: 'none', credentials: auth.credentials };
+        : { kind: 'none', credentials: validatedAuth.credentials };
     })();
     normalized.set(name, {
       baseUrl: new URL(baseUrl),
       applicationAuth: service.applicationAuth ?? 'api-key',
       headerPolicy: service.headerPolicy ?? 'standard',
       redirectPolicy: service.redirectPolicy ?? 'error',
-      allowedRedirectOrigins,
       auth: normalizedAuth,
     });
   }
@@ -524,14 +676,26 @@ const resolveUrl = (service: string, config: NormalizedService, input: InternalS
   return url;
 };
 
+const bodyTag = (body: unknown) => Object.prototype.toString.call(body);
+
+const isStreamBody = (body: unknown) =>
+  body !== null &&
+  typeof body === 'object' &&
+  (bodyTag(body) === '[object ReadableStream]' ||
+    typeof (body as { getReader?: unknown }).getReader === 'function' ||
+    typeof (body as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === 'function');
+
 const isBodyInit = (body: unknown): body is BodyInit =>
   typeof body === 'string' ||
-  (typeof Blob !== 'undefined' && body instanceof Blob) ||
-  (typeof FormData !== 'undefined' && body instanceof FormData) ||
-  (typeof URLSearchParams !== 'undefined' && body instanceof URLSearchParams) ||
-  (typeof ReadableStream !== 'undefined' && body instanceof ReadableStream) ||
-  body instanceof ArrayBuffer ||
-  ArrayBuffer.isView(body);
+  [
+    '[object Blob]',
+    '[object File]',
+    '[object FormData]',
+    '[object URLSearchParams]',
+    '[object ArrayBuffer]',
+  ].includes(bodyTag(body)) ||
+  ArrayBuffer.isView(body) ||
+  isStreamBody(body);
 
 const prepareBody = (body: unknown, headers: Headers) => {
   if (body === undefined) return undefined;
@@ -595,12 +759,14 @@ const prepareHeaders = async (
   if (headerPolicy === 'standard') {
     headers.set('Accept', headers.get('Accept') ?? 'application/json');
   }
-  if (auth.kind === 'bearer') {
+  if (auth.kind === 'bearer' || auth.kind === 'authorization') {
     if (signal.aborted) throw new TokenResolutionAbortedError();
-    let token: string | null | undefined;
+    let token: unknown;
     let removeAbortListener: (() => void) | undefined;
     try {
-      const tokenPromise = Promise.resolve().then(auth.getToken);
+      const tokenPromise = Promise.resolve().then(
+        auth.kind === 'bearer' ? auth.getToken : auth.getAuthorization,
+      );
       const abortPromise = new Promise<never>((_resolve, reject) => {
         const rejectOnAbort = () => reject(new TokenResolutionAbortedError());
         signal.addEventListener('abort', rejectOnAbort, { once: true });
@@ -610,20 +776,31 @@ const prepareHeaders = async (
     } catch (error) {
       if (error instanceof TokenResolutionAbortedError) throw error;
       return failConfiguration(
-        'SDK_BEARER_TOKEN_RESOLUTION_FAILED',
-        'The bearer token could not be resolved.',
+        auth.kind === 'bearer'
+          ? 'SDK_BEARER_TOKEN_RESOLUTION_FAILED'
+          : 'SDK_AUTHORIZATION_RESOLUTION_FAILED',
+        auth.kind === 'bearer'
+          ? 'The bearer token could not be resolved.'
+          : 'The authorization value could not be resolved.',
       );
     } finally {
       removeAbortListener?.();
     }
-    if (token) {
-      if (hasInvalidHeaderCharacters(token, true)) {
+    if (token !== null && token !== undefined) {
+      if (
+        typeof token !== 'string' ||
+        !token.trim() ||
+        token.length > 4096 ||
+        hasInvalidHeaderCharacters(token, auth.kind === 'bearer')
+      ) {
         return failConfiguration(
-          'SDK_BEARER_TOKEN_INVALID',
-          'The bearer token is not header-safe.',
+          auth.kind === 'bearer' ? 'SDK_BEARER_TOKEN_INVALID' : 'SDK_AUTHORIZATION_INVALID',
+          auth.kind === 'bearer'
+            ? 'The bearer token is not header-safe.'
+            : 'The authorization value is not header-safe.',
         );
       }
-      headers.set('Authorization', `Bearer ${token}`);
+      headers.set('Authorization', auth.kind === 'bearer' ? `Bearer ${token}` : token);
     }
   }
   return headers;
@@ -642,7 +819,7 @@ const deduplicationScopeFor = (auth: SdkUserAuthStrategy) => {
     return credentialsFor(auth) === 'omit' ? 'anonymous' : null;
   }
   if (!auth.deduplicationScope) return null;
-  let scope: string | null | undefined;
+  let scope: unknown;
   try {
     scope = auth.deduplicationScope();
   } catch {
@@ -652,7 +829,12 @@ const deduplicationScopeFor = (auth: SdkUserAuthStrategy) => {
     );
   }
   if (scope === null || scope === undefined) return null;
-  if (!scope || scope.length > 256 || hasInvalidHeaderCharacters(scope, false)) {
+  if (
+    typeof scope !== 'string' ||
+    !scope ||
+    scope.length > 256 ||
+    hasInvalidHeaderCharacters(scope, false)
+  ) {
     return failConfiguration(
       'SDK_DEDUPLICATION_SCOPE_INVALID',
       'The read-deduplication authentication scope is invalid.',
@@ -733,54 +915,95 @@ const readBoundedText = async (response: Response, maxBytes: number) => {
 const parseErrorResponse = async (
   response: Response,
   maxErrorBodyBytes: number,
-  allowedRedirectOrigins: ReadonlySet<string>,
 ): Promise<ParsedResponse> => {
   if (response.status === 204 || response.status === 205) {
-    return { value: undefined, parseFailed: false, bodyKind: 'empty' };
+    return { responseBody: undefined, bodyKind: 'empty' };
   }
   const { text, truncated } = await readBoundedText(response, maxErrorBodyBytes);
-  if (!text) return { value: undefined, parseFailed: false, bodyKind: 'empty' as const };
+  if (!text) return { responseBody: undefined, bodyKind: 'empty' as const };
   if (truncated) {
-    return { value: { bodyTruncated: true }, parseFailed: true, bodyKind: 'truncated' as const };
+    return { responseBody: undefined, bodyKind: 'truncated' as const };
   }
   const declaresJson = responseDeclaresJson(response);
   const trimmedText = text.trimStart();
   if (declaresJson || trimmedText.startsWith('{') || trimmedText.startsWith('[')) {
     try {
       return {
-        value: sanitizeErrorDetails(JSON.parse(text), { allowedRedirectOrigins }),
-        parseFailed: false,
+        responseBody: JSON.parse(text),
         bodyKind: 'json' as const,
       };
     } catch {
       if (declaresJson) {
         return {
-          value: { parseFailure: 'malformed-json' },
-          parseFailed: true,
+          responseBody: undefined,
           bodyKind: 'malformed' as const,
         };
       }
     }
   }
   return {
-    value: sanitizeErrorDetails({ message: text }, { allowedRedirectOrigins }),
-    parseFailed: false,
+    responseBody: text,
     bodyKind: 'text' as const,
   };
 };
 
-const parseSuccessResponse = async (response: Response, mode: SdkResponseMode) => {
-  if (response.status === 204 || response.status === 205) {
+const readBoundedBytes = async (response: Response, maxBytes: number): Promise<Uint8Array> => {
+  const declaredLength = response.headers.get('content-length');
+  if (declaredLength !== null) {
+    const parsedLength = Number(declaredLength);
+    if (Number.isFinite(parsedLength) && parsedLength > maxBytes) {
+      await response.body?.cancel();
+      throw new SuccessBodyLimitError();
+    }
+  }
+  if (!response.body) return new Uint8Array();
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytesRead = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytesRead += value.byteLength;
+    if (bytesRead > maxBytes) {
+      await reader.cancel();
+      throw new SuccessBodyLimitError();
+    }
+    chunks.push(value);
+  }
+  const result = new Uint8Array(bytesRead);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return result;
+};
+
+const parseSuccessResponse = async (
+  response: Response,
+  mode: SdkResponseMode,
+  method: SdkHttpMethod,
+  maxBytes: number,
+) => {
+  if (method === 'HEAD' || response.status === 204 || response.status === 205) {
     if (mode === 'text') return '';
-    if (mode === 'blob') return response.blob();
-    if (mode === 'arrayBuffer') return response.arrayBuffer();
+    if (mode === 'blob') return new Blob([], { type: response.headers.get('content-type') ?? '' });
+    if (mode === 'arrayBuffer') return new ArrayBuffer(0);
     return undefined;
   }
   const effectiveMode = mode === 'auto' ? (responseDeclaresJson(response) ? 'json' : 'text') : mode;
-  if (effectiveMode === 'blob') return response.blob();
+  if (effectiveMode === 'blob') {
+    // Rebuild with the ambient Blob constructor: response.blob() yields the fetch
+    // implementation's realm, which breaks instanceof checks in jsdom consumers.
+    return new Blob([await response.arrayBuffer()], {
+      type: response.headers.get('content-type') ?? '',
+    });
+  }
   if (effectiveMode === 'arrayBuffer') return response.arrayBuffer();
-  if (effectiveMode === 'text') return response.text();
-  return response.json() as Promise<unknown>;
+  const bytes = await readBoundedBytes(response, maxBytes);
+  const text = new TextDecoder().decode(bytes);
+  if (effectiveMode === 'text') return text;
+  return JSON.parse(text) as unknown;
 };
 
 const makeErrorContext = (
@@ -789,7 +1012,7 @@ const makeErrorContext = (
   method: SdkHttpMethod,
   requestId: string,
   attempt: number,
-  extra: Partial<SdkErrorContext> = {},
+  extra: Partial<SdkDiagnosticErrorContext> = {},
 ): SdkErrorContext => ({
   service,
   route: diagnosticRoute,
@@ -803,14 +1026,13 @@ const classifyHttpError = async (
   response: Response,
   context: SdkErrorContext,
   maxErrorBodyBytes: number,
-  allowedRedirectOrigins: ReadonlySet<string>,
   now: () => number,
 ): Promise<SdkHttpError> => {
-  const parsed = await parseErrorResponse(response, maxErrorBodyBytes, allowedRedirectOrigins);
-  const errorContext = {
+  const parsed = await parseErrorResponse(response, maxErrorBodyBytes);
+  const errorContext: SdkHttpErrorContext = {
     ...context,
     status: response.status,
-    details: parsed.value,
+    responseBody: parsed.responseBody,
     bodyKind: parsed.bodyKind,
   };
   if (response.status === 401) {
@@ -819,7 +1041,10 @@ const classifyHttpError = async (
   if (response.status === 403) {
     return new SdkAuthorizationError(response.headers, errorContext);
   }
-  if (response.status === 400 || response.status === 409 || response.status === 422) {
+  if (response.status === 409) {
+    return new SdkConflictError(response.headers, errorContext);
+  }
+  if (response.status === 400 || response.status === 422) {
     return new SdkValidationError(response.headers, errorContext);
   }
   if (response.status === 429) {
@@ -931,34 +1156,77 @@ const waitForRetry = async (delayMs: number, active: ActiveRequest, sleep: SdkSl
 
 /** @public */
 export const createInvestSdkTransport = (config: InvestSdkTransportConfig): InvestSdkTransport => {
-  const fetchImplementation = config.fetch ?? globalThis.fetch;
+  const runtimeConfig: unknown = config;
+  if (runtimeConfig === null || typeof runtimeConfig !== 'object' || Array.isArray(runtimeConfig)) {
+    failConfiguration('SDK_CONFIG_INVALID', 'SDK transport configuration must be an object.');
+  }
+  const configRecord = runtimeConfig as Record<string, unknown>;
+  // Explicit null is invalid and must not silently select the omitted-field default.
+  const fetchImplementation =
+    configRecord.fetch === undefined ? globalThis.fetch : configRecord.fetch;
   if (typeof fetchImplementation !== 'function') {
     failConfiguration('SDK_FETCH_MISSING', 'A Fetch implementation is required.');
   }
+  const sdkFetch = fetchImplementation as typeof fetch;
   for (const [name, candidate] of [
-    ['createRequestId', config.createRequestId],
-    ['now', config.now],
-    ['random', config.random],
-    ['sleep', config.sleep],
+    ['createRequestId', configRecord.createRequestId],
+    ['now', configRecord.now],
+    ['random', configRecord.random],
+    ['resolveResponseSource', configRecord.resolveResponseSource],
+    ['sleep', configRecord.sleep],
   ] as const) {
     if (candidate !== undefined && typeof candidate !== 'function') {
       failConfiguration('SDK_CALLBACK_INVALID', `${name} must be a function.`);
     }
   }
-  const insecureOrigins = normalizeAllowedInsecureOrigins(config.allowInsecureOrigins);
-  const services = normalizeServices(config.services, insecureOrigins);
+  const insecureOrigins = normalizeAllowedInsecureOrigins(configRecord.allowInsecureOrigins);
+  const services = normalizeServices(configRecord.services, insecureOrigins);
   const applicationKey = validateApiKey(
-    config.apiKey,
+    configRecord.apiKey,
     [...services.values()].some(({ applicationAuth }) => applicationAuth === 'api-key'),
   );
-  const defaultTimeout = normalizeTimeout(config.timeoutMs);
-  const maxErrorBodyBytes = normalizeMaxErrorBodyBytes(config.maxErrorBodyBytes);
-  const defaultRetry = Object.freeze(normalizeRetry(undefined, config.retry));
-  const deduplicateSafeReads = config.deduplicateSafeReads === true;
-  const createRequestId = config.createRequestId ?? defaultRequestId;
-  const now = config.now ?? Date.now;
-  const random = config.random ?? Math.random;
-  const sleep = config.sleep ?? defaultSleep;
+  const defaultTimeout = normalizeTimeout(configRecord.timeoutMs);
+  const maxErrorBodyBytes = normalizeMaxErrorBodyBytes(configRecord.maxErrorBodyBytes);
+  const maxTextResponseBodyBytes = normalizeMaxTextResponseBodyBytes(
+    configRecord.maxTextResponseBodyBytes,
+  );
+  const defaultRetry = Object.freeze(normalizeRetry(undefined, configRecord.retry));
+  if (
+    configRecord.deduplicateSafeReads !== undefined &&
+    typeof configRecord.deduplicateSafeReads !== 'boolean'
+  ) {
+    failConfiguration(
+      'SDK_DEDUPLICATION_CONFIG_INVALID',
+      'deduplicateSafeReads must be a boolean.',
+    );
+  }
+  const deduplicateSafeReads = configRecord.deduplicateSafeReads === true;
+  const createRequestId =
+    (configRecord.createRequestId as (() => string) | undefined) ?? defaultRequestId;
+  const now = (configRecord.now as (() => number) | undefined) ?? Date.now;
+  const random = (configRecord.random as (() => number) | undefined) ?? Math.random;
+  const sleep = (configRecord.sleep as SdkSleep | undefined) ?? defaultSleep;
+  const resolveResponseSource = configRecord.resolveResponseSource as
+    ((response: Response) => SdkResultSource) | undefined;
+  const classifyResponseSource = (response: Response): SdkResultSource => {
+    if (!resolveResponseSource) return 'network';
+    let source: unknown;
+    try {
+      source = resolveResponseSource(response);
+    } catch {
+      return failConfiguration(
+        'SDK_RESPONSE_SOURCE_RESOLUTION_FAILED',
+        'The injected response-source classifier failed.',
+      );
+    }
+    if (typeof source !== 'string' || !RESULT_SOURCES.has(source)) {
+      return failConfiguration(
+        'SDK_RESPONSE_SOURCE_INVALID',
+        'The injected response-source classifier returned an unsupported value.',
+      );
+    }
+    return source as SdkResultSource;
+  };
   const currentTime = () => {
     const value = now();
     if (!Number.isFinite(value)) {
@@ -966,8 +1234,27 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
     }
     return value;
   };
-  const hooks = Object.freeze({ ...config.hooks });
+  if (
+    configRecord.hooks !== undefined &&
+    (configRecord.hooks === null ||
+      typeof configRecord.hooks !== 'object' ||
+      Array.isArray(configRecord.hooks))
+  ) {
+    failConfiguration('SDK_HOOKS_INVALID', 'hooks must be an object.');
+  }
+  const hooksRecord = (configRecord.hooks ?? {}) as Record<string, unknown>;
+  for (const name of ['onRequest', 'onResponse', 'onError'] as const) {
+    if (hooksRecord[name] !== undefined && typeof hooksRecord[name] !== 'function') {
+      failConfiguration('SDK_HOOKS_INVALID', `hooks.${name} must be a function.`);
+    }
+  }
+  const hooks = Object.freeze({
+    onRequest: hooksRecord.onRequest as SdkHooks['onRequest'],
+    onResponse: hooksRecord.onResponse as SdkHooks['onResponse'],
+    onError: hooksRecord.onError as SdkHooks['onError'],
+  });
   const activeRequests = new Set<ActiveRequest>();
+  const keylessServiceClients = new WeakSet();
   const inFlightReads = new Map<string, Promise<SdkResult<unknown>>>();
   let disposed = false;
 
@@ -995,7 +1282,10 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
       input.operationId === undefined
         ? `service:${serviceName}`
         : validateDiagnosticIdentifier(input.operationId, 'operationId');
-    if ((input.method === 'GET' || input.method === 'OPTIONS') && input.body !== undefined) {
+    if (
+      (input.method === 'GET' || input.method === 'HEAD' || input.method === 'OPTIONS') &&
+      input.body !== undefined
+    ) {
       failConfiguration(
         'SDK_READ_BODY_REJECTED',
         `${input.method} requests must not include a body.`,
@@ -1009,19 +1299,22 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
         'requestId is not available for minimal-header services.',
       );
     }
-    const requestId = input.requestId ?? createRequestId();
+    const requestIdValue: unknown = input.requestId ?? createRequestId();
     if (
-      !requestId ||
-      requestId.length > MAX_REQUEST_ID_LENGTH ||
-      hasInvalidHeaderCharacters(requestId, false)
+      typeof requestIdValue !== 'string' ||
+      !requestIdValue ||
+      requestIdValue.length > MAX_REQUEST_ID_LENGTH ||
+      hasInvalidHeaderCharacters(requestIdValue, false)
     ) {
       failConfiguration(
         'SDK_REQUEST_ID_INVALID',
         'requestId must be a non-empty header-safe value no longer than 256 characters.',
       );
     }
-    const retry = normalizeRetry(input.retry, defaultRetry);
-    const safeRead = input.method === 'GET' || input.method === 'OPTIONS';
+    const requestId = requestIdValue as string;
+    const retry = normalizeRetry(input.retry, defaultRetry, true);
+    const safeRead =
+      input.method === 'GET' || input.method === 'HEAD' || input.method === 'OPTIONS';
     const idempotencyKey = validateIdempotencyKey(input.idempotencyKey, input.method);
     const requestTimeout = normalizeTimeout(input.timeoutMs, defaultTimeout);
     const active: ActiveRequest = { controller: new AbortController() };
@@ -1106,15 +1399,18 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
               redirect: service.redirectPolicy,
               signal: active.controller.signal,
             };
+            if (input.cache !== undefined) requestInit.cache = input.cache;
             if (body !== undefined) requestInit.body = body;
-            const response = await fetchImplementation(url, requestInit);
+            if (body !== undefined && isStreamBody(body)) {
+              (requestInit as RequestInit & { duplex: 'half' }).duplex = 'half';
+            }
+            const response = await sdkFetch(url, requestInit);
             if (isRequestAborted(active)) throw new Error('Request aborted after Fetch resolved.');
             if (!response.ok) {
               const httpError = await classifyHttpError(
                 response,
                 makeErrorContext(serviceName, diagnosticRoute, input.method, requestId, attempt),
                 maxErrorBodyBytes,
-                service.allowedRedirectOrigins,
                 currentTime,
               );
               if (hooks.onError) {
@@ -1152,15 +1448,25 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
 
             let parsedData: unknown;
             try {
-              parsedData = await parseSuccessResponse(response, input.responseMode ?? 'auto');
-            } catch {
+              parsedData = await parseSuccessResponse(
+                response,
+                input.responseMode ?? 'auto',
+                input.method,
+                maxTextResponseBodyBytes,
+              );
+            } catch (error) {
               if (isRequestAborted(active)) {
                 throw new Error('Request aborted while parsing the response.');
               }
               const parseError = new SdkResponseParseError(
                 makeErrorContext(serviceName, diagnosticRoute, input.method, requestId, attempt, {
                   status: response.status,
-                  details: { parseFailure: 'malformed-json' },
+                  details: {
+                    parseFailure:
+                      error instanceof SuccessBodyLimitError
+                        ? 'response-body-too-large'
+                        : 'malformed-json',
+                  },
                 }),
               );
               if (hooks.onError) {
@@ -1193,11 +1499,39 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
                   void Promise.resolve(data).catch(() => undefined);
                   throw new Error('Response validators must be synchronous.');
                 }
-              } catch {
+              } catch (error) {
+                const contractIssue = (() => {
+                  if (
+                    error === null ||
+                    typeof error !== 'object' ||
+                    (error as { name?: unknown }).name !== 'ContractResponseValidationFailure'
+                  ) {
+                    return undefined;
+                  }
+                  const issue = (error as { issue?: unknown }).issue;
+                  if (issue === null || typeof issue !== 'object') return undefined;
+                  const candidate = issue as Record<string, unknown>;
+                  if (
+                    (candidate.validationMode !== 'compatible' &&
+                      candidate.validationMode !== 'exact') ||
+                    typeof candidate.keyword !== 'string' ||
+                    typeof candidate.instancePath !== 'string'
+                  ) {
+                    return undefined;
+                  }
+                  return {
+                    validationMode: candidate.validationMode,
+                    keyword: candidate.keyword.slice(0, 64),
+                    instancePath: candidate.instancePath.slice(0, 256),
+                  };
+                })();
                 const validationError = new SdkResponseValidationError(
                   makeErrorContext(serviceName, diagnosticRoute, input.method, requestId, attempt, {
                     status: response.status,
-                    details: { validationFailure: 'response-schema' },
+                    details: {
+                      validationFailure: 'response-schema',
+                      ...(contractIssue ? { contractIssue } : {}),
+                    },
                   }),
                 );
                 if (hooks.onError) {
@@ -1221,6 +1555,7 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
               data = parsedData as T;
             }
             const responseRequestId = response.headers.get('x-request-id') ?? requestId;
+            const source = classifyResponseSource(response);
             if (hooks.onResponse) {
               await emitDiagnostic(
                 hooks.onResponse,
@@ -1228,6 +1563,7 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
                   phase: 'response',
                   ...diagnosticBase,
                   status: response.status,
+                  source,
                 },
                 active.controller.signal,
               );
@@ -1238,6 +1574,11 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
               status: response.status,
               headers: new Headers(response.headers),
               requestId: responseRequestId,
+              metadata: Object.freeze({
+                requestId,
+                attempts: attempt,
+                source,
+              }),
             };
           } catch (error) {
             if (error instanceof InvestSdkError) throw error;
@@ -1396,6 +1737,25 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
       return request(serviceName, { ...options, method: 'GET', path });
     }
 
+    function headForService<T>(
+      path: string,
+      options: SdkValidatedConvenienceRequestOptions<T>,
+    ): Promise<SdkResult<T>>;
+    function headForService<Mode extends 'text' | 'blob' | 'arrayBuffer'>(
+      path: string,
+      options: SdkConvenienceRequestOptions<Mode> & { responseMode: Mode },
+    ): Promise<SdkResult<SdkResponseData<Mode>>>;
+    function headForService(
+      path: string,
+      options?: SdkConvenienceRequestOptions,
+    ): Promise<SdkResult<unknown>>;
+    function headForService(
+      path: string,
+      options: InternalSdkConvenienceRequestOptions = {},
+    ): Promise<SdkResult<unknown>> {
+      return request(serviceName, { ...options, method: 'HEAD', path });
+    }
+
     function optionsForService<T>(
       path: string,
       options: SdkValidatedOptionsRequestOptions<T>,
@@ -1412,7 +1772,7 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
       path: string,
       options: InternalSdkOptionsRequestOptions = {},
     ): Promise<SdkResult<unknown>> {
-      const { schema = true, query, ...requestOptions } = options;
+      const { schema = false, query, ...requestOptions } = options;
       const schemaQuery = schema ? { ...query, schema: 1 } : query;
       const input: InternalSdkRequestInput = {
         ...requestOptions,
@@ -1526,6 +1886,7 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
     return Object.freeze({
       request: requestForService,
       get: getForService,
+      head: headForService,
       options: optionsForService,
       post: postForService,
       put: putForService,
@@ -1534,8 +1895,33 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
     });
   };
 
+  const createKeylessServiceClient = (serviceName: string): SdkKeylessServiceClient => {
+    const service =
+      services.get(serviceName) ??
+      failConfiguration('SDK_SERVICE_UNKNOWN', `Unknown SDK service: ${serviceName}`);
+    if (
+      service.applicationAuth !== 'none' ||
+      service.auth.kind !== 'none' ||
+      (service.auth.credentials ?? 'omit') !== 'omit'
+    ) {
+      failConfiguration(
+        'SDK_KEYLESS_CLIENT_AUTH_REJECTED',
+        `Service ${serviceName} is not configured without application and user credentials.`,
+      );
+    }
+    const client = {
+      ...createServiceClient(serviceName),
+      [runtimeKeylessServiceClientProof]() {
+        return keylessServiceClients.has(this);
+      },
+    };
+    keylessServiceClients.add(client);
+    return Object.freeze(client) as unknown as SdkKeylessServiceClient;
+  };
+
   return Object.freeze({
     createServiceClient,
+    createKeylessServiceClient,
     dispose: () => {
       if (disposed) return;
       disposed = true;

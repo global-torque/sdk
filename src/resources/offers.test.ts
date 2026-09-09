@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createInvestSdkTransport } from '../client.js';
 import { SdkResponseValidationError } from '../errors.js';
 import { createFetchScript, jsonResponse } from '../testing.js';
-import { createOffersResource } from './offers.js';
+import { createOffersResource, validateOfferListResponse } from './offers.js';
 
 const setup = (responses: readonly Response[]) => {
   const script = createFetchScript(responses);
@@ -70,21 +70,61 @@ describe('offers resource', () => {
       name: 'SdkResponseValidationError',
       code: 'SDK_RESPONSE_VALIDATION_FAILED',
       route: 'OfferList',
+      details: {
+        validationFailure: 'response-schema',
+        contractIssue: {
+          validationMode: 'compatible',
+          keyword: 'type',
+          instancePath: '/data',
+        },
+      },
     });
     expect(error).toBeInstanceOf(SdkResponseValidationError);
     expect(JSON.stringify(error)).not.toContain('must-not-leak');
     context.transport.dispose();
   });
 
-  it('does not embed deployed-wire compatibility outside the pinned contract', async () => {
+  it('rejects missing operation-relied identifiers after compatible wire validation', async () => {
+    const context = setup([jsonResponse({ data: [{ slug: 'missing-id' }], count: 1 })]);
+    await expect(context.resource.listOffers()).rejects.toMatchObject({
+      code: 'SDK_RESPONSE_VALIDATION_FAILED',
+      details: {
+        contractIssue: {
+          validationMode: 'compatible',
+          keyword: 'required',
+          instancePath: '/data/0',
+        },
+      },
+    });
+    context.transport.dispose();
+  });
+
+  it('accepts additive wire drift, preserves unknown enum values, and normalizes decimals', async () => {
     const context = setup([
       jsonResponse({
-        data: [{ id: 2, slug: 'nixplay', created_at: '2026-07-01' }],
+        data: [
+          {
+            id: 2,
+            slug: 'nixplay',
+            created_at: '2026-07-01',
+            price_per_share: '100.00',
+            fund_structure: 'evergreen_v2',
+          },
+        ],
         count: 1,
+        next_cursor: 'page-2',
       }),
     ]);
 
-    await expect(context.resource.listOffers()).rejects.toBeInstanceOf(SdkResponseValidationError);
+    const result = await context.resource.listOffers();
+
+    expect(result.data.data?.[0]?.price_per_share).toBe('100');
+    expect(result.data.data?.[0]?.fund_structure).toBe('evergreen_v2');
+    expect((result.data as Record<string, unknown>).next_cursor).toBe('page-2');
+    expect(result.data.data?.[0]).toHaveProperty('created_at', '2026-07-01');
+    expect(() => validateOfferListResponse.exact(result.data)).toThrow(
+      'does not satisfy its exact contract',
+    );
     context.transport.dispose();
   });
 

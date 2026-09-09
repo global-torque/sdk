@@ -20,7 +20,7 @@ jobs:
           node-version: 24
           package-manager-cache: false
       - run: corepack enable
-      - run: corepack prepare pnpm@10.33.0 --activate
+      - run: corepack prepare pnpm@10.34.5 --activate
       - run: pnpm install --frozen-lockfile
       - name: Verify tag matches package version
         shell: bash
@@ -43,12 +43,41 @@ jobs:
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: release/*.tgz
-      - name: Create immutable prerelease
+      - name: Identify exact npm provenance subject
+        id: npm_subject
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const archives = fs.readdirSync('release').filter(name => name.endsWith('.tgz'));
+          if (archives.length !== 1) throw new Error('Expected exactly one verified npm tarball.');
+          const digest = createHash('sha512').update(fs.readFileSync(`release/${archives[0]}`)).digest('hex');
+          const name = manifest.name.split('/').map(encodeURIComponent).join('/');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            `name=pkg:npm/${name}@${manifest.version}\ndigest=sha512:${digest}\n`);
+          JS
+      - name: Attest npm package identity and SHA-512
+        id: npm_provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-name: ${{ steps.npm_subject.outputs.name }}
+          subject-digest: ${{ steps.npm_subject.outputs.digest }}
+      - name: Preserve npm provenance outside the strict release bundle
+        env:
+          NPM_PROVENANCE_BUNDLE: ${{ steps.npm_provenance.outputs.bundle-path }}
+        run: cp "${NPM_PROVENANCE_BUNDLE}" npm-provenance.json
+      - name: Create immutable release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "${GITHUB_REF_NAME}" release/*
-          --prerelease
-          --verify-tag
-          --title "@global-torque/sdk ${GITHUB_REF_NAME#v}"
+        shell: bash
+        run: |
+          release_args=()
+          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
+            release_args+=(--prerelease)
+          fi
+          gh release create "${GITHUB_REF_NAME}" release/* npm-provenance.json "${release_args[@]}" \
+          --verify-tag \
+          --title "@global-torque/sdk ${GITHUB_REF_NAME#v}" \
           --generate-notes

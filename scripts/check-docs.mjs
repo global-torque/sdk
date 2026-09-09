@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { publishTagForVersion } from './public-package-version-policy.mjs';
 
 const packageDirectory = path.resolve(import.meta.dirname, '..');
 const packageJson = JSON.parse(
@@ -15,7 +16,6 @@ const requiredDocuments = [
   'NOTICE.md',
   'SECURITY.md',
   'SUPPORT.md',
-  'CONTRACTS.md',
   'etc/invest-sdk.api.md',
 ];
 
@@ -36,8 +36,18 @@ const requiredExports = [
   './pagination',
   './resources/auth',
   './resources/evm',
+  './resources/analytics',
+  './resources/distributions',
+  './resources/esign',
+  './resources/filer',
+  './resources/forms',
+  './resources/fund-manager',
+  './resources/invitations',
+  './resources/notifications',
   './resources/offers',
   './resources/investments',
+  './resources/profiles',
+  './resources/users',
   './resources/vault',
   './testing',
   './types',
@@ -54,6 +64,14 @@ if (packageJson.license !== 'MIT') failures.push('public package license must be
 if (packageJson.publishConfig?.access !== 'public') {
   failures.push('public package must declare publishConfig.access: public');
 }
+if (
+  packageJson.publishConfig?.provenance !== true ||
+  packageJson.publishConfig?.tag !== publishTagForVersion(packageJson.version)
+) {
+  failures.push(
+    'public package must preserve provenance and the version-appropriate publication tag',
+  );
+}
 if (!packageJson.repository?.url?.includes('global-torque/sdk')) {
   failures.push('repository metadata must point to global-torque/sdk');
 }
@@ -62,6 +80,8 @@ const readme = fs.readFileSync(path.join(packageDirectory, 'README.md'), 'utf8')
 for (const requiredStatement of [
   'does not assert server idempotency',
   'Response validators run synchronously',
+  '`result.metadata`',
+  '`resolveResponseSource`',
   '`maxPages` and `maxItems`',
   '`@global-torque/sdk/resources/evm`',
   '`@global-torque/sdk/resources/investments`',

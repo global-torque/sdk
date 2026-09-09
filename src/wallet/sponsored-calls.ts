@@ -45,6 +45,59 @@ export interface BrowserSponsoredCallPendingStoreOptions {
   storage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 }
 
+/**
+ * Durable proof that the provider accepted the call, reported before the
+ * browser starts waiting for confirmation. @alpha
+ */
+export interface SponsoredCallSubmissionEvidence {
+  callId: string;
+}
+
+/**
+ * Durable proof of the transaction the accepted call produced, reported
+ * before any pending evidence is discarded. @alpha
+ */
+export interface SponsoredCallReceiptEvidence {
+  callId: string;
+  transactionHash: `0x${string}`;
+}
+
+/** @alpha */
+export type SponsoredCallEvidencePhase = 'submission' | 'receipt';
+
+/**
+ * Registering durable evidence failed. The provider call was accepted and
+ * stays resumable, so the host must retry rather than submit a replacement.
+ * @alpha
+ */
+export class SponsoredCallEvidenceError extends Error {
+  readonly phase: SponsoredCallEvidencePhase;
+  readonly callId: string;
+  readonly retryable = true;
+
+  constructor(phase: SponsoredCallEvidencePhase, callId: string, cause: unknown) {
+    super(
+      cause instanceof Error && cause.message.trim()
+        ? cause.message
+        : `Recording the sponsored call ${phase} evidence failed.`,
+      { cause },
+    );
+    this.name = 'SponsoredCallEvidenceError';
+    this.phase = phase;
+    this.callId = callId;
+  }
+}
+
+/**
+ * Whether a failure came from durable evidence registration rather than the
+ * provider. Such a failure is retryable and leaves the accepted call
+ * resumable, so hosts must not treat it as a completed or dead operation.
+ * @alpha
+ */
+export const isSponsoredCallEvidenceError = (error: unknown): error is SponsoredCallEvidenceError =>
+  error instanceof SponsoredCallEvidenceError ||
+  (error as { name?: unknown } | null)?.name === 'SponsoredCallEvidenceError';
+
 /** @alpha */
 export interface ExecuteSponsoredCallInput {
   operationKey: string;
@@ -52,6 +105,19 @@ export interface ExecuteSponsoredCallInput {
   call: SponsoredCall;
   provider: SponsoredCallProvider;
   postcondition: () => boolean | Promise<boolean>;
+  beforeSubmit?: () => void | Promise<void>;
+  /**
+   * Records the accepted provider call ID durably. Awaited before the browser
+   * waits for confirmation, and awaited again on every resume. Host-owned:
+   * endpoint construction and authentication stay outside this package.
+   */
+  onSubmissionEvidence?: (evidence: SponsoredCallSubmissionEvidence) => void | Promise<void>;
+  /**
+   * Records the observed transaction hash durably. Awaited after the receipt
+   * hash is validated and before the postcondition is evaluated, so pending
+   * evidence is never discarded ahead of its registration.
+   */
+  onReceiptEvidence?: (evidence: SponsoredCallReceiptEvidence) => void | Promise<void>;
   signal?: AbortSignal;
   onProgress?: (progress: SponsoredCallProgress) => void;
 }
@@ -78,6 +144,7 @@ export interface SponsoredCallExecutor {
 export interface CreateSponsoredCallExecutorOptions {
   chainId: number;
   pendingStore?: SponsoredCallPendingStore;
+  // Legacy compatibility option only: age cannot prove a replacement safe.
   pendingTtlMs?: number;
   confirmationTimeoutMs?: number;
   now?: () => number;
@@ -89,7 +156,6 @@ const HEX_PATTERN = /^0x(?:[0-9a-f]{2})*$/u;
 const TRANSACTION_HASH_PATTERN = /^0x[0-9a-f]{64}$/u;
 const CALL_ID_PATTERN = /^[\x21-\x7e]{1,512}$/u;
 const DEFAULT_CONFIRMATION_TIMEOUT_MS = 120_000;
-const DEFAULT_PENDING_TTL_MS = 24 * 60 * 60 * 1_000;
 
 const normalizeAddress = (value: unknown, label: string): `0x${string}` => {
   const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -230,6 +296,22 @@ const transactionHashFromStatus = (status: unknown): `0x${string}` => {
   return hash as `0x${string}`;
 };
 
+/**
+ * Await one host evidence hook. A failure keeps the persisted provider call
+ * intact and is surfaced as retryable, never as a provider-terminal failure.
+ */
+const registerEvidence = async (
+  phase: SponsoredCallEvidencePhase,
+  callId: string,
+  register: () => void | Promise<void>,
+): Promise<void> => {
+  try {
+    await register();
+  } catch (error) {
+    throw new SponsoredCallEvidenceError(phase, callId, error);
+  }
+};
+
 const samePendingCall = (pending: PendingSponsoredCall, expected: PendingSponsoredCall) =>
   pending.operationKey === expected.operationKey &&
   pending.sender === expected.sender &&
@@ -237,12 +319,8 @@ const samePendingCall = (pending: PendingSponsoredCall, expected: PendingSponsor
   pending.target === expected.target &&
   pending.data === expected.data &&
   pending.value === expected.value &&
-  Boolean(pending.callId.trim());
-
-const freshPendingCall = (pending: PendingSponsoredCall, now: number, ttlMs: number) => {
-  const submittedAt = Date.parse(pending.submittedAt);
-  return Number.isFinite(submittedAt) && now - submittedAt >= 0 && now - submittedAt <= ttlMs;
-};
+  Boolean(pending.callId.trim()) &&
+  Number.isFinite(Date.parse(pending.submittedAt));
 
 /** Create a browser-backed exact-operation pending store. @alpha */
 export const createBrowserSponsoredCallPendingStore = (
@@ -333,11 +411,13 @@ export const createSponsoredCallExecutor = (
 ): SponsoredCallExecutor => {
   const expectedChainId = chainId(options.chainId);
   const confirmationTimeoutMs = options.confirmationTimeoutMs ?? DEFAULT_CONFIRMATION_TIMEOUT_MS;
-  const pendingTtlMs = options.pendingTtlMs ?? DEFAULT_PENDING_TTL_MS;
   if (!Number.isFinite(confirmationTimeoutMs) || confirmationTimeoutMs <= 0) {
     throw new TypeError('confirmationTimeoutMs must be a positive number.');
   }
-  if (!Number.isFinite(pendingTtlMs) || pendingTtlMs <= 0) {
+  if (
+    options.pendingTtlMs !== undefined &&
+    (!Number.isFinite(options.pendingTtlMs) || options.pendingTtlMs <= 0)
+  ) {
     throw new TypeError('pendingTtlMs must be a positive number.');
   }
   const now = options.now ?? Date.now;
@@ -363,20 +443,6 @@ export const createSponsoredCallExecutor = (
       try {
         throwIfAborted(input.signal);
         input.onProgress?.({ phase: 'checking' });
-        if (await input.postcondition()) {
-          options.pendingStore?.clear(key, sender, expectedChainId);
-          input.onProgress?.({ phase: 'verified' });
-          return { alreadySatisfied: true, callId: null, transactionHash: null };
-        }
-        throwIfAborted(input.signal);
-        const observedNow = now();
-        let submittedAt: string;
-        try {
-          submittedAt = new Date(observedNow).toISOString();
-        } catch {
-          throw new TypeError('now must return a valid epoch-millisecond timestamp.');
-        }
-
         const expectedPending: PendingSponsoredCall = {
           operationKey: key,
           sender,
@@ -394,18 +460,32 @@ export const createSponsoredCallExecutor = (
             'The persisted sponsored call does not match the currently authorized operation.',
           );
         }
-        if (pending && !freshPendingCall(pending, observedNow, pendingTtlMs)) {
-          options.pendingStore?.clear(key, sender, expectedChainId);
-          pending = null;
+
+        // A persisted provider call always wins over an already-satisfied host
+        // check. It still has evidence to register and a receipt to reconcile;
+        // neither elapsed time nor backend progress proves a replacement safe.
+        if (!pending && (await input.postcondition())) {
+          input.onProgress?.({ phase: 'verified' });
+          return { alreadySatisfied: true, callId: null, transactionHash: null };
         }
+        throwIfAborted(input.signal);
 
         let callId = pending?.callId ?? '';
         if (!callId) {
+          const observedNow = now();
+          let submittedAt: string;
+          try {
+            submittedAt = new Date(observedNow).toISOString();
+          } catch {
+            throw new TypeError('now must return a valid epoch-millisecond timestamp.');
+          }
           input.onProgress?.({ phase: 'preparing' });
           const prepared = await input.provider.prepareCalls({ account: sender, calls: [call] });
           throwIfAborted(input.signal);
           assertExactSponsoredCall(prepared, { sender, chainId: expectedChainId, call });
           const signed = await input.provider.signPreparedCalls(prepared);
+          throwIfAborted(input.signal);
+          await input.beforeSubmit?.();
           throwIfAborted(input.signal);
           const submitted = await input.provider.sendPreparedCalls(signed);
           callId = providerCallId((submitted as { id?: unknown } | null)?.id);
@@ -417,6 +497,12 @@ export const createSponsoredCallExecutor = (
         }
 
         input.onProgress?.({ phase: 'submitted', callId });
+        // Registration runs on every attempt, fresh or resumed, and is awaited
+        // before any confirmation wait: the owning operation must hold the
+        // provider call ID before this browser can lose it.
+        await registerEvidence('submission', callId, () =>
+          input.onSubmissionEvidence?.({ callId }),
+        );
         throwIfAborted(input.signal);
         input.onProgress?.({ phase: 'confirming', callId });
         let status: unknown;
@@ -432,6 +518,9 @@ export const createSponsoredCallExecutor = (
         }
         throwIfAborted(input.signal);
         const transactionHash = transactionHashFromStatus(status);
+        await registerEvidence('receipt', callId, () =>
+          input.onReceiptEvidence?.({ callId, transactionHash }),
+        );
         if (!(await input.postcondition())) {
           throw new Error(
             'The sponsored call confirmed, but its required postcondition is not satisfied.',

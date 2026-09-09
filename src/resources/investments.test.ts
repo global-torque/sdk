@@ -72,6 +72,12 @@ const pinnedInvestment = {
   transaction_ref: 'wire_20260210_123',
 } as const;
 
+const pendingSharesInvestment = {
+  ...pinnedInvestment,
+  number_of_shares: null,
+  amount: null,
+} as const;
+
 const setup = (responses: readonly Response[]) => {
   const script = createFetchScript(responses);
   const routes: string[] = [];
@@ -100,6 +106,26 @@ const requestBody = (body: BodyInit | null | undefined) => {
 };
 
 describe('investments resource', () => {
+  it('accepts pending shares in create, detail, and list responses', async () => {
+    const context = setup([
+      jsonResponse(pendingSharesInvestment),
+      jsonResponse(pendingSharesInvestment),
+      jsonResponse({ data: [pendingSharesInvestment], count: 1 }),
+    ]);
+
+    const created = await context.resource.createInvestment({
+      offerSlug: 'oncolyze',
+      profileId: 42,
+    });
+    const detail = await context.resource.getInvestment({ investmentId: 123 });
+    const listed = await context.resource.listUnconfirmed();
+
+    expect(created.data).toMatchObject({ number_of_shares: null, amount: null });
+    expect(detail.data).toMatchObject({ number_of_shares: null, amount: null });
+    expect(listed.data.data?.[0]).toMatchObject({ number_of_shares: null, amount: null });
+    context.transport.dispose();
+  });
+
   it('executes every pinned safe read with exact routes, paths, and pagination', async () => {
     const context = setup([
       jsonResponse({
@@ -392,11 +418,18 @@ describe('investments resource', () => {
     'rejects %s response drift without leaking payload values',
     async (route, response, invoke) => {
       const context = setup([jsonResponse({ ...response, private_secret: 'must-not-leak' })]);
-      const error = await invoke(context.resource).catch((reason: unknown) => reason);
+      const result = await invoke(context.resource).catch((reason: unknown) => reason);
 
-      expect(error).toBeInstanceOf(SdkResponseValidationError);
-      expect(error).toMatchObject({ code: 'SDK_RESPONSE_VALIDATION_FAILED', route });
-      expect(JSON.stringify(error)).not.toContain('must-not-leak');
+      if (route === 'InvestmentGet' || route === 'InvestmentReviewStep') {
+        expect(result).not.toBeInstanceOf(SdkResponseValidationError);
+        expect((result as { data: Record<string, unknown> }).data.private_secret).toBe(
+          'must-not-leak',
+        );
+      } else {
+        expect(result).toBeInstanceOf(SdkResponseValidationError);
+        expect(result).toMatchObject({ code: 'SDK_RESPONSE_VALIDATION_FAILED', route });
+        expect(JSON.stringify(result)).not.toContain('must-not-leak');
+      }
       context.transport.dispose();
     },
   );

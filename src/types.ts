@@ -1,5 +1,5 @@
 /** @public */
-export type SdkHttpMethod = 'GET' | 'OPTIONS' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+export type SdkHttpMethod = 'GET' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 /** @public */
 export type SdkResponseMode = 'auto' | 'json' | 'text' | 'blob' | 'arrayBuffer';
@@ -26,12 +26,35 @@ export type SdkErrorBodyKind = 'json' | 'text' | 'empty' | 'malformed' | 'trunca
 /** @public */
 export type SdkQueryValue = string | number | boolean | null | undefined;
 
+/**
+ * Transport provenance only. The SDK never reads or writes an offline store;
+ * an injected Fetch adapter may classify an already-produced response.
+ *
+ * @public
+ */
+export type SdkResultSource = 'network' | 'offline-cache' | 'unknown';
+
+/**
+ * Immutable, body-free metadata for runtime offline and analytics
+ * coordination. `requestId` is the SDK-created correlation identifier rather
+ * than an arbitrary response header value.
+ *
+ * @public
+ */
+export interface SdkResultMetadata {
+  readonly requestId: string;
+  readonly attempts: number;
+  readonly source: SdkResultSource;
+}
+
 /** @public */
 export interface SdkResult<T> {
   data: T;
   status: number;
   headers: Headers;
+  /** Server response request ID when present, retained for alpha compatibility. */
   requestId?: string;
+  metadata: Readonly<SdkResultMetadata>;
 }
 
 /** @public */
@@ -56,6 +79,16 @@ export type SdkResponseValidator<T> = (
   value: unknown,
 ) => T extends object ? T & { readonly then?: never } : T;
 
+/**
+ * A generated response validator uses forward-compatible wire validation by
+ * default and retains exact pinned-schema validation for contract canaries.
+ *
+ * @public
+ */
+export type SdkContractResponseValidator<T> = SdkResponseValidator<T> & {
+  readonly exact: SdkResponseValidator<T>;
+};
+
 /** @public */
 export type SdkSleep = (delayMs: number, signal: AbortSignal) => Promise<void>;
 
@@ -65,7 +98,6 @@ export interface SdkServiceConfig {
   applicationAuth?: 'api-key' | 'none';
   headerPolicy?: 'standard' | 'minimal' | 'caller';
   redirectPolicy?: 'error' | 'follow';
-  allowedRedirectOrigins?: readonly string[];
   auth?: SdkUserAuthStrategy;
 }
 
@@ -85,6 +117,15 @@ export interface SdkBearerAuthStrategy {
 }
 
 /** @public */
+export interface SdkAuthorizationAuthStrategy {
+  kind: 'authorization';
+  /** Resolve the complete Authorization field value, including its scheme. */
+  getAuthorization: () => string | null | undefined | Promise<string | null | undefined>;
+  credentials?: 'omit' | 'same-origin' | 'include';
+  deduplicationScope?: () => string | null | undefined;
+}
+
+/** @public */
 export interface SdkNoUserAuthStrategy {
   kind: 'none';
   credentials?: 'omit' | 'same-origin' | 'include';
@@ -92,7 +133,10 @@ export interface SdkNoUserAuthStrategy {
 
 /** @public */
 export type SdkUserAuthStrategy =
-  SdkCookieAuthStrategy | SdkBearerAuthStrategy | SdkNoUserAuthStrategy;
+  | SdkCookieAuthStrategy
+  | SdkBearerAuthStrategy
+  | SdkAuthorizationAuthStrategy
+  | SdkNoUserAuthStrategy;
 
 /**
  * An unvalidated request. The response type is derived only from
@@ -110,6 +154,8 @@ export interface SdkRequestInput<Mode extends SdkResponseMode = SdkResponseMode>
   body?: unknown;
   responseMode?: Mode;
   signal?: AbortSignal;
+  /** Forward an explicit Fetch cache mode without introducing SDK-owned storage policy. */
+  cache?: RequestCache;
   /** `null` disables the transport timeout for temporary legacy compatibility facades. */
   timeoutMs?: number | null;
   retry?: SdkRetryPolicy;
@@ -169,6 +215,8 @@ export interface SdkDiagnosticEvent {
   attempt: number;
   status?: number;
   errorCode?: string;
+  /** Present only after a successful response has been classified. */
+  source?: SdkResultSource;
 }
 
 /** @public */
@@ -186,9 +234,16 @@ export interface InvestSdkTransportConfig {
   createRequestId?: () => string;
   timeoutMs?: number | null;
   maxErrorBodyBytes?: number;
+  /** Maximum bytes accepted from one successful JSON or text response. Defaults to 16 MiB. */
+  maxTextResponseBodyBytes?: number;
   retry?: SdkRetryPolicy;
   deduplicateSafeReads?: boolean;
   hooks?: SdkHooks;
+  /**
+   * Synchronous provenance classifier for injected Fetch adapters. The SDK
+   * defaults to `network` and does not own cache lookup, persistence, or policy.
+   */
+  resolveResponseSource?: (response: Response) => SdkResultSource;
   allowInsecureOrigins?: readonly string[];
   /** Injectable deterministic clock used only for Retry-After HTTP-date calculations. */
   now?: () => number;
@@ -211,6 +266,12 @@ export interface SdkServiceClient {
     options: SdkConvenienceRequestOptions<Mode> & { responseMode: Mode },
   ): Promise<SdkResult<SdkResponseData<Mode>>>;
   get(path: string, options?: SdkConvenienceRequestOptions): Promise<SdkResult<unknown>>;
+  head<T>(path: string, options: SdkValidatedConvenienceRequestOptions<T>): Promise<SdkResult<T>>;
+  head<Mode extends 'text' | 'blob' | 'arrayBuffer'>(
+    path: string,
+    options: SdkConvenienceRequestOptions<Mode> & { responseMode: Mode },
+  ): Promise<SdkResult<SdkResponseData<Mode>>>;
+  head(path: string, options?: SdkConvenienceRequestOptions): Promise<SdkResult<unknown>>;
   options<T>(path: string, options: SdkValidatedOptionsRequestOptions<T>): Promise<SdkResult<T>>;
   options<Mode extends 'text' | 'blob' | 'arrayBuffer'>(
     path: string,
@@ -279,8 +340,16 @@ export interface SdkServiceClient {
   ): Promise<SdkResult<unknown>>;
 }
 
+declare const sdkKeylessServiceClientBrand: unique symbol;
+
+/** A service client proven by its transport to carry no application or user credentials. @public */
+export interface SdkKeylessServiceClient extends SdkServiceClient {
+  readonly [sdkKeylessServiceClientBrand]: true;
+}
+
 /** @public */
 export interface InvestSdkTransport {
   createServiceClient(service: string): SdkServiceClient;
+  createKeylessServiceClient(service: string): SdkKeylessServiceClient;
   dispose(): void;
 }

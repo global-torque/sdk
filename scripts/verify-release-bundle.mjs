@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { publishTagForVersion } from './public-package-version-policy.mjs';
 
 const packageDirectory = path.resolve(import.meta.dirname, '..');
 const directoryIndex = process.argv.indexOf('--directory');
@@ -111,7 +112,10 @@ try {
     packedManifest.name !== releaseManifest.package.name ||
     packedManifest.version !== releaseManifest.package.version ||
     packedManifest.private !== false ||
-    packedManifest.license !== 'MIT'
+    packedManifest.license !== 'MIT' ||
+    packedManifest.publishConfig?.access !== 'public' ||
+    packedManifest.publishConfig?.provenance !== true ||
+    packedManifest.publishConfig?.tag !== publishTagForVersion(packedManifest.version)
   ) {
     throw new Error('Packed manifest does not match the reviewed release identity.');
   }

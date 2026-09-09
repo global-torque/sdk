@@ -4,6 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { assertSingleSelectedGeneration } from './pack-utils.mjs';
+import { publishTagForVersion } from './public-package-version-policy.mjs';
+import {
+  assertPackedDependencyBoundary,
+  assertPackedSourceBoundary,
+  publicExportSpecifiers,
+} from './packed-policy.mjs';
 
 const packageDirectory = path.resolve(import.meta.dirname, '..');
 const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'invest-sdk-consumer-'));
@@ -72,20 +78,15 @@ try {
     installedManifest.repository?.url !== expectedManifest.repository.url ||
     installedManifest.publishConfig?.access !== 'public' ||
     installedManifest.publishConfig?.provenance !== true ||
-    installedManifest.publishConfig?.tag !== 'next' ||
+    installedManifest.publishConfig?.tag !== publishTagForVersion(installedManifest.version) ||
     JSON.stringify(Object.keys(installedManifest.exports).sort()) !==
       JSON.stringify(Object.keys(expectedManifest.exports).sort())
   ) {
     throw new Error('Packed SDK identity, exports, or public release metadata changed.');
   }
-  const dependencyValues = [
-    ...Object.values(installedManifest.dependencies ?? {}),
-    ...Object.values(installedManifest.peerDependencies ?? {}),
-    ...Object.values(installedManifest.optionalDependencies ?? {}),
-  ];
-  if (dependencyValues.some((value) => String(value).startsWith('workspace:'))) {
-    throw new Error('Packed SDK contains a workspace dependency.');
-  }
+  assertPackedDependencyBoundary(installedManifest);
+  assertPackedSourceBoundary(installedPackageDirectory);
+  const exportSpecifiers = publicExportSpecifiers(installedManifest);
   const packedLicense = fs.readFileSync(path.join(installedPackageDirectory, 'LICENSE'), 'utf8');
   if (packedLicense !== expectedLicense || !packedLicense.startsWith('MIT License')) {
     throw new Error('Packed SDK license does not match the MIT package license.');
@@ -95,9 +96,19 @@ try {
     `import * as sdk from '@global-torque/sdk';
 	import * as auth from '@global-torque/sdk/auth';
 	import * as resourceAuth from '@global-torque/sdk/resources/auth';
+	import * as analytics from '@global-torque/sdk/resources/analytics';
+	import * as distributions from '@global-torque/sdk/resources/distributions';
+	import * as esign from '@global-torque/sdk/resources/esign';
 	import * as evm from '@global-torque/sdk/resources/evm';
+	import * as filer from '@global-torque/sdk/resources/filer';
+	import * as forms from '@global-torque/sdk/resources/forms';
+	import * as fundManager from '@global-torque/sdk/resources/fund-manager';
+	import * as invitations from '@global-torque/sdk/resources/invitations';
+	import * as notifications from '@global-torque/sdk/resources/notifications';
 	import * as offers from '@global-torque/sdk/resources/offers';
 	import * as investments from '@global-torque/sdk/resources/investments';
+	import * as profiles from '@global-torque/sdk/resources/profiles';
+	import * as users from '@global-torque/sdk/resources/users';
 	import * as vault from '@global-torque/sdk/resources/vault';
 	import * as errors from '@global-torque/sdk/errors';
 	import * as pagination from '@global-torque/sdk/pagination';
@@ -109,7 +120,14 @@ try {
 
 const config = {
   apiKey: 'synthetic_type_key',
-  services: { investments: { baseUrl: 'https://api.example.test/' } },
+	services: {
+	  investments: { baseUrl: 'https://api.example.test/' },
+	  downloads: {
+	    baseUrl: 'https://downloads.example.test/',
+	    applicationAuth: 'none',
+	    auth: { kind: 'none', credentials: 'omit' },
+	  },
+	},
 	} satisfies contracts.InvestSdkTransportConfig;
 	const transport: contracts.InvestSdkTransport = sdk.createInvestSdkTransport(config);
 	const cookie: contracts.SdkCookieAuthStrategy = auth.cookieAuth();
@@ -139,11 +157,45 @@ const config = {
 	const vaultResource: vault.VaultResource = vault.createVaultResource(
 	  transport.createServiceClient('investments'),
 	);
+	const firstPartyResources = [
+	  analytics.createAnalyticsResource(transport.createServiceClient('investments')),
+	  distributions.createDistributionsResource(transport.createServiceClient('investments')),
+	  esign.createEsignResource(transport.createServiceClient('investments')),
+	  filer.createFilerResource(transport.createServiceClient('investments'), {
+	    signedDownloadClient: transport.createKeylessServiceClient('downloads'),
+	    publicDownloadClient: transport.createKeylessServiceClient('downloads'),
+	  }),
+	  forms.createFormsResource(transport.createServiceClient('investments')),
+	  fundManager.createFundManagerResource(transport.createServiceClient('investments')),
+	  invitations.createInvitationsResource(transport.createServiceClient('investments')),
+	  notifications.createNotificationsResource({
+	    notifications: transport.createServiceClient('investments'),
+	    users: transport.createServiceClient('investments'),
+	  }),
+	  profiles.createProfilesResource(transport.createServiceClient('investments')),
+	  users.createUsersResource(transport.createServiceClient('investments')),
+	] satisfies [
+	  analytics.AnalyticsResource,
+	  distributions.DistributionsResource,
+	  esign.EsignResource,
+	  filer.FilerResource,
+	  forms.FormsResource,
+	  fundManager.FundManagerResource,
+	  invitations.InvitationsResource,
+	  notifications.NotificationsResource,
+	  profiles.ProfilesResource,
+	  users.UsersResource,
+	];
 	const error: sdk.InvestSdkError = new errors.SdkConfigurationError('TEST', 'synthetic');
 const result: contracts.SdkResult<undefined> = {
   data: undefined,
   status: 204,
   headers: new Headers(),
+  metadata: Object.freeze({
+    requestId: 'packed-consumer-request',
+    attempts: 1,
+    source: 'network',
+  }),
 };
 	void [
 	  transport,
@@ -153,6 +205,7 @@ const result: contracts.SdkResult<undefined> = {
 	  offersResource,
 	  investmentsResource,
 	  vaultResource,
+	  firstPartyResources,
 	  pageItems,
 	  response,
 	  delegation,
@@ -161,6 +214,15 @@ const result: contracts.SdkResult<undefined> = {
 	  error,
 	  result,
 	];
+`,
+  );
+  fs.writeFileSync(
+    path.join(consumerDirectory, 'verify-exports.ts'),
+    `${exportSpecifiers
+      .map((specifier, index) => `import * as publicExport${index} from '${specifier}';`)
+      .join('\n')}
+
+void [${exportSpecifiers.map((_specifier, index) => `publicExport${index}`).join(', ')}];
 `,
   );
   for (const [name, compilerOptions] of [
@@ -179,7 +241,7 @@ const result: contracts.SdkResult<undefined> = {
           skipLibCheck: false,
           ...compilerOptions,
         },
-        include: ['verify.ts'],
+        include: ['verify.ts', 'verify-exports.ts'],
       }),
     );
     run('pnpm', ['exec', 'tsc', '-p', configPath], packageDirectory);
@@ -189,9 +251,19 @@ const result: contracts.SdkResult<undefined> = {
     `import * as sdk from '@global-torque/sdk';
 	import * as auth from '@global-torque/sdk/auth';
 	import * as resourceAuth from '@global-torque/sdk/resources/auth';
+	import * as analytics from '@global-torque/sdk/resources/analytics';
+	import * as distributions from '@global-torque/sdk/resources/distributions';
+	import * as esign from '@global-torque/sdk/resources/esign';
 	import * as evm from '@global-torque/sdk/resources/evm';
+	import * as filer from '@global-torque/sdk/resources/filer';
+	import * as forms from '@global-torque/sdk/resources/forms';
+	import * as fundManager from '@global-torque/sdk/resources/fund-manager';
+	import * as invitations from '@global-torque/sdk/resources/invitations';
+	import * as notifications from '@global-torque/sdk/resources/notifications';
 	import * as offers from '@global-torque/sdk/resources/offers';
 	import * as investments from '@global-torque/sdk/resources/investments';
+	import * as profiles from '@global-torque/sdk/resources/profiles';
+	import * as users from '@global-torque/sdk/resources/users';
 	import * as vault from '@global-torque/sdk/resources/vault';
 	import * as errors from '@global-torque/sdk/errors';
 	import * as pagination from '@global-torque/sdk/pagination';
@@ -207,6 +279,7 @@ const expectedErrors = [
   'SdkAuthenticationError',
   'SdkAuthorizationError',
   'SdkConfigurationError',
+  'SdkConflictError',
   'SdkHttpError',
   'SdkNetworkError',
   'SdkOfflineError',
@@ -235,6 +308,20 @@ for (const name of expectedErrors) {
 	if (typeof investments.createInvestmentsResource !== 'function') {
 	  throw new Error('Investments resource subpath mismatch');
 	}
+	for (const [name, factory] of [
+	  ['Analytics', analytics.createAnalyticsResource],
+	  ['Distributions', distributions.createDistributionsResource],
+	  ['E-sign', esign.createEsignResource],
+	  ['Filer', filer.createFilerResource],
+	  ['Forms', forms.createFormsResource],
+	  ['Fund Manager', fundManager.createFundManagerResource],
+	  ['Invitations', invitations.createInvitationsResource],
+	  ['Notifications', notifications.createNotificationsResource],
+	  ['Profiles', profiles.createProfilesResource],
+	  ['Users', users.createUsersResource],
+	]) {
+	  if (typeof factory !== 'function') throw new Error(name + ' resource subpath mismatch');
+	}
 	if (typeof sponsoredCalls.createSponsoredCallExecutor !== 'function') {
 	  throw new Error('Sponsored calls wallet subpath mismatch');
 	}
@@ -258,7 +345,7 @@ const transport = sdk.createInvestSdkTransport({
 });
 
 const result = await transport.createServiceClient('investments').options('/forms');
-if (captured.url !== 'https://api.example.test/forms?schema=1') throw new Error('OPTIONS schema URL mismatch');
+if (captured.url !== 'https://api.example.test/forms') throw new Error('OPTIONS URL mismatch');
 if (captured.method !== 'OPTIONS') throw new Error('OPTIONS method mismatch');
 if (captured.key !== 'synthetic_pack_key') throw new Error('application key mismatch');
 if (result.status !== 200 || result.data.fields.length !== 0) throw new Error('result envelope mismatch');
@@ -275,7 +362,52 @@ transport.dispose();
 `,
   );
   run('node', ['verify.mjs'], consumerDirectory);
-  console.log('Packed invest SDK clean-room consumer passed.');
+  fs.writeFileSync(
+    path.join(consumerDirectory, 'verify-exports.mjs'),
+    `const specifiers = ${JSON.stringify(exportSpecifiers)};
+for (const specifier of specifiers) {
+  const namespace = await import(specifier);
+  if (namespace === null || typeof namespace !== 'object') {
+    throw new Error('Invalid public export namespace: ' + specifier);
+  }
+}
+`,
+  );
+  run('node', ['verify-exports.mjs'], consumerDirectory);
+
+  const npmConsumerDirectory = path.join(temporaryDirectory, 'npm-consumer');
+  fs.mkdirSync(npmConsumerDirectory);
+  for (const fileName of [
+    'package.json',
+    'verify.ts',
+    'verify-exports.ts',
+    'verify.mjs',
+    'verify-exports.mjs',
+    'tsconfig.nodenext.json',
+    'tsconfig.bundler.json',
+  ]) {
+    fs.copyFileSync(
+      path.join(consumerDirectory, fileName),
+      path.join(npmConsumerDirectory, fileName),
+    );
+  }
+  run(
+    'npm',
+    ['install', '--ignore-scripts', '--no-audit', '--no-fund', archivePath],
+    npmConsumerDirectory,
+  );
+  for (const name of ['nodenext', 'bundler']) {
+    run(
+      'pnpm',
+      ['exec', 'tsc', '-p', path.join(npmConsumerDirectory, `tsconfig.${name}.json`)],
+      packageDirectory,
+    );
+  }
+  run('node', ['verify.mjs'], npmConsumerDirectory);
+  run('node', ['verify-exports.mjs'], npmConsumerDirectory);
+  console.log(
+    `Packed invest SDK clean npm/pnpm consumers passed for ${exportSpecifiers.length} public subpaths.`,
+  );
 } finally {
   fs.rmSync(temporaryDirectory, { recursive: true, force: true });
 }

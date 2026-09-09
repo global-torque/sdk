@@ -69,6 +69,40 @@ describe('Vault resource', () => {
     context.transport.dispose();
   });
 
+  it('reads a manager-priced redemption without an estimate or legacy NAV fields', async () => {
+    const quote = {
+      asset_amount_raw: '6250000',
+      pricing_source: 'manager_dealing_price',
+      dealing_price_usdc_raw: '25000000',
+      priced_by_user_id: 1,
+      priced_request_effect_id: 501,
+      delta_from_estimate_raw: null,
+    };
+    const context = setup([
+      jsonResponse({
+        position: {
+          ...position,
+          vault: {
+            ...position.vault,
+            redemptions: [
+              {
+                ...redemption,
+                request_origin: 'application',
+                estimate: null,
+                pricing_status: 'priced',
+                final: quote,
+                operations: {},
+              },
+            ],
+          },
+        },
+      }),
+    ]);
+    const result = await context.resource.getPosition({ offerId: 77 });
+    expect(result.data.position.vault.redemptions[0]?.final).toEqual(quote);
+    context.transport.dispose();
+  });
+
   it('creates a redemption with exact raw shares and an idempotency key', async () => {
     const context = setup([jsonResponse({ redemption, replayed: false }, { status: 201 })]);
     await context.resource.createRedemption({

@@ -8,6 +8,38 @@ import { Hex } from 'viem';
 import type { LocalAccount } from 'viem';
 import { SignableMessage } from 'viem';
 
+// @public
+export interface AcceptedInvestor {
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly profileType: 'individual' | 'entity' | 'trust' | 'sdira' | 'solo401k' | (string & {});
+}
+
+// @public (undocumented)
+export interface AcceptInvitationInput {
+    // (undocumented)
+    body: InvitationAcceptRequest;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public
+export interface AccreditedInvestor {
+    // (undocumented)
+    readonly explanation?: string;
+    // (undocumented)
+    readonly is_accredited: boolean;
+}
+
+// @public
+export interface AccreditedInvestorRequestInput {
+    // (undocumented)
+    readonly explanation?: string;
+    // (undocumented)
+    readonly is_accredited: boolean;
+}
+
 // @alpha (undocumented)
 export const ALCHEMY_MODULAR_ACCOUNT_V2_ADDRESS = "0x69007702764179f14f51cdce752f4f775d74e139";
 
@@ -21,11 +53,97 @@ export interface AmountStep {
     // (undocumented)
     readonly funding_source_id?: number;
     // (undocumented)
-    readonly funding_type: 'none' | 'wire' | 'ach' | 'wallet' | 'crypto_wallet';
+    readonly funding_type: 'none' | 'wire' | 'ach' | 'wallet' | 'crypto_wallet' | (string & {});
     // (undocumented)
     readonly payment_data?: Readonly<Record<string, unknown>>;
     // (undocumented)
     readonly profile_id: number;
+}
+
+// @public
+export interface AnalyticsEventCreate {
+    // (undocumented)
+    readonly body?: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    readonly event_type: string;
+    // (undocumented)
+    readonly identity_id?: string;
+    // (undocumented)
+    readonly method: string;
+    // (undocumented)
+    readonly request_path: string;
+    // (undocumented)
+    readonly service_context?: AnalyticsServiceContext;
+    // (undocumented)
+    readonly status_code: number;
+}
+
+// @public
+export interface AnalyticsEventResponse {
+    // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly id: string;
+}
+
+// @public
+export interface AnalyticsLogCreate {
+    // (undocumented)
+    readonly body?: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    readonly caller?: readonly string[];
+    // (undocumented)
+    readonly client?: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    readonly component?: string;
+    // (undocumented)
+    readonly data?: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    readonly error?: string;
+    // (undocumented)
+    readonly level?: string;
+    // (undocumented)
+    readonly message: string;
+    // (undocumented)
+    readonly serviceContext?: AnalyticsServiceContext;
+    // (undocumented)
+    readonly severity?: string;
+    // (undocumented)
+    readonly stack?: readonly Readonly<Record<string, unknown>>[];
+    // (undocumented)
+    readonly time?: string;
+}
+
+// @public
+export interface AnalyticsLogResponse {
+    // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly id?: string;
+}
+
+// @public (undocumented)
+export interface AnalyticsResource {
+    // (undocumented)
+    createEvent(input: CreateAnalyticsEventInput): Promise<SdkResult<AnalyticsEventResponse>>;
+    // (undocumented)
+    createLog(input: CreateAnalyticsLogInput): Promise<SdkResult<AnalyticsLogResponse>>;
+}
+
+// @public
+export interface AnalyticsServiceContext {
+    // (undocumented)
+    readonly httpRequest?: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    readonly request_id?: string | null;
+    // (undocumented)
+    readonly service_name?: string;
+    // (undocumented)
+    readonly sourceReference?: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    readonly user?: string | null;
+    // (undocumented)
+    readonly version?: string;
 }
 
 // @alpha
@@ -51,6 +169,9 @@ export function assertTurnkeySessionIdentity(session: TurnkeyBrowserSessionIdent
     organizationId: string;
     userId: string;
 };
+
+// @public (undocumented)
+export const authorizationAuth: (options: Omit<SdkAuthorizationAuthStrategy, "kind">) => Readonly<SdkAuthorizationAuthStrategy>;
 
 // @public (undocumented)
 export const bearerAuth: (options: Omit<SdkBearerAuthStrategy, "kind">) => Readonly<SdkBearerAuthStrategy>;
@@ -114,11 +235,41 @@ export interface CreateAlchemyEip7702ActivatorOptions {
     rpcUrl?: string;
 }
 
+// @public (undocumented)
+export interface CreateAnalyticsEventInput {
+    // (undocumented)
+    body: AnalyticsEventCreate;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public (undocumented)
+export interface CreateAnalyticsLogInput {
+    // (undocumented)
+    body: AnalyticsLogCreate;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public
+export const createAnalyticsResource: (client: SdkServiceClient) => AnalyticsResource;
+
 // @alpha (undocumented)
 export function createBrowserEip7702PendingStore(options: BrowserEip7702PendingStoreOptions): Eip7702PendingOperationStore;
 
 // @alpha
 export const createBrowserSponsoredCallPendingStore: (options: BrowserSponsoredCallPendingStoreOptions) => SponsoredCallPendingStore;
+
+// @public (undocumented)
+export interface CreateDistributionInput {
+    // (undocumented)
+    profileId: number;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public
+export const createDistributionsResource: (client: SdkServiceClient) => DistributionsResource;
 
 // @alpha (undocumented)
 export function createEip7702Activator(options: CreateEip7702ActivatorOptions): Eip7702Activator;
@@ -147,8 +298,52 @@ export interface CreateEip7702ActivatorOptions {
     pendingTtlMs?: number;
 }
 
+// @public (undocumented)
+export interface CreateEsignDocumentInput {
+    // (undocumented)
+    body: EsignDocumentCreate;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public
+export const createEsignResource: (client: SdkServiceClient) => EsignResource;
+
 // @public
 export const createEvmResource: (client: SdkServiceClient) => EvmResource;
+
+// @public (undocumented)
+export interface CreateFilerFolderInput {
+    // (undocumented)
+    body: FilerOfferFolderRequest;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public
+export const createFilerResource: (client: SdkServiceClient, downloadClients: FilerDownloadClients) => FilerResource;
+
+// @public (undocumented)
+export interface CreateFilerUploadUrlInput {
+    // (undocumented)
+    body: FilerUploadRequest;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public
+export const createFormsResource: (client: SdkServiceClient) => FormsResource;
+
+// @public
+export const createFundManagerResource: (client: SdkServiceClient) => FundManagerResource;
+
+// @public (undocumented)
+export interface CreateIncomingRequestInput {
+    // (undocumented)
+    body: IncomingRequestCreate;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
 
 // @public (undocumented)
 export interface CreateInvestmentInput {
@@ -164,10 +359,37 @@ export interface CreateInvestmentInput {
 export const createInvestmentsResource: (client: SdkServiceClient) => InvestmentsResource;
 
 // @public (undocumented)
+export interface CreateInvestorInvitationInput {
+    // (undocumented)
+    body: InvestorInvitationCreate;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public (undocumented)
 export const createInvestSdkTransport: (config: InvestSdkTransportConfig) => InvestSdkTransport;
 
 // @public
+export const createInvitationsResource: (client: SdkServiceClient) => InvitationsResource;
+
+// @public
+export const createNotificationsResource: (clients: NotificationsResourceClients) => NotificationsResource;
+
+// @public
 export const createOffersResource: (client: SdkServiceClient) => OffersResource;
+
+// @public (undocumented)
+export interface CreateProfileInput {
+    // (undocumented)
+    body: IndividualProfileCreateRequest;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+    // (undocumented)
+    type: ProfileType;
+}
+
+// @public
+export const createProfilesResource: (client: SdkServiceClient) => ProfilesResource;
 
 // @alpha
 export const createSponsoredCallExecutor: (options: CreateSponsoredCallExecutorOptions) => SponsoredCallExecutor;
@@ -186,6 +408,14 @@ export interface CreateSponsoredCallExecutorOptions {
     pendingStore?: SponsoredCallPendingStore;
     // (undocumented)
     pendingTtlMs?: number;
+}
+
+// @public (undocumented)
+export interface CreateTeamInvitationInput {
+    // (undocumented)
+    body: TeamInvitationCreate;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
 }
 
 // @alpha (undocumented)
@@ -217,6 +447,9 @@ export function createTurnkeyBrowserRuntime(rawConfig: Pick<TurnkeyBrowserConfig
 // @alpha (undocumented)
 export function createTurnkeyClientSignature(client: TurnkeyIndexedDbClient, message: string, publicKey: string): Promise<TurnkeyClientSignature>;
 
+// @public
+export const createUsersResource: (client: SdkServiceClient) => UsersResource;
+
 // @public (undocumented)
 export interface CreateVaultRedemptionInput {
     // (undocumented)
@@ -237,6 +470,51 @@ export const DEFAULT_EIP_7702_CONFIRMATION_TIMEOUT_MS = 120000;
 
 // @alpha (undocumented)
 export const DEFAULT_EIP_7702_PENDING_TTL_MS: number;
+
+// @public (undocumented)
+export interface DeleteFilerFileInput {
+    // (undocumented)
+    id: number;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public
+export interface Distribution {
+    // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly amount?: number;
+    // (undocumented)
+    readonly id?: number;
+    // (undocumented)
+    readonly investment_id?: number;
+    // (undocumented)
+    readonly profile_id?: number;
+    // (undocumented)
+    readonly status?: DistributionT;
+    // (undocumented)
+    readonly user_id?: number;
+}
+
+// @public (undocumented)
+export interface DistributionProfileInput {
+    // (undocumented)
+    profileId: number;
+    // (undocumented)
+    request?: ResourceRequestOptions;
+}
+
+// @public (undocumented)
+export interface DistributionsResource {
+    // (undocumented)
+    create(input: CreateDistributionInput): Promise<SdkResult<ResponseCreateDistribution>>;
+    // (undocumented)
+    list(input: DistributionProfileInput): Promise<SdkResult<ResponseGetDistributions>>;
+}
+
+// @public
+export type DistributionT = string;
 
 // @alpha (undocumented)
 export interface Eip7702ActivationProgress {
@@ -326,7 +604,7 @@ export interface Eip7702Signer {
     // (undocumented)
     address: `0x${string}`;
     // (undocumented)
-    signAuthorization?: (parameters: unknown) => Promise<{
+    signAuthorization?(parameters: unknown): Promise<{
         r: `0x${string}`;
         s: `0x${string}`;
         v?: number | bigint | string;
@@ -337,11 +615,47 @@ export interface Eip7702Signer {
         message: SignableMessage;
     }) => Promise<Hex>;
     // (undocumented)
-    signTypedData: (parameters: unknown) => Promise<Hex>;
+    signTypedData(parameters: unknown): Promise<Hex>;
 }
 
 // @alpha (undocumented)
 export const EIP_7702_DELEGATION_PREFIX = "0xef0100";
+
+// @public
+export interface EmploymentTypes {
+    // (undocumented)
+    readonly address1?: string;
+    // (undocumented)
+    readonly address2?: string;
+    // (undocumented)
+    readonly city?: string;
+    // (undocumented)
+    readonly employer_name?: string;
+    // (undocumented)
+    readonly title?: string;
+    // (undocumented)
+    readonly type?: 'Employed (full-time)' | 'Employed (part-time)' | 'Self-employed' | 'Not employed' | 'Retired' | 'Student' | (string & {});
+    // (undocumented)
+    readonly zip_code?: string;
+}
+
+// @public
+export interface EmploymentTypesRequestInput {
+    // (undocumented)
+    readonly address1?: string;
+    // (undocumented)
+    readonly address2?: string;
+    // (undocumented)
+    readonly city?: string;
+    // (undocumented)
+    readonly employer_name?: string;
+    // (undocumented)
+    readonly title?: string;
+    // (undocumented)
+    readonly type?: 'Employed (full-time)' | 'Employed (part-time)' | 'Self-employed' | 'Not employed' | 'Retired' | 'Student';
+    // (undocumented)
+    readonly zip_code?: string;
+}
 
 // @public
 export type EmptyResponse = Readonly<Record<string, never>>;
@@ -361,6 +675,36 @@ export interface EnsureEip7702DelegationInput {
     signal?: AbortSignal;
     // (undocumented)
     signer: Eip7702Signer;
+}
+
+// @public
+export interface EsignDocumentCreate {
+    // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly investment_id: number;
+}
+
+// @public
+export interface EsignDocumentResponse {
+    // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly created_at: string;
+    // (undocumented)
+    readonly entity_id: string;
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly token: string;
+    // (undocumented)
+    readonly uuid: string;
+}
+
+// @public (undocumented)
+export interface EsignResource {
+    // (undocumented)
+    createDocument(input: CreateEsignDocumentInput): Promise<SdkResult<EsignDocumentResponse>>;
 }
 
 // @alpha (undocumented)
@@ -407,9 +751,13 @@ export type EvmTransactionStatus = 'all' | 'pending' | 'confirmed';
 // @alpha (undocumented)
 export interface ExecuteSponsoredCallInput {
     // (undocumented)
+    beforeSubmit?: () => void | Promise<void>;
+    // (undocumented)
     call: SponsoredCall;
     // (undocumented)
     onProgress?: (progress: SponsoredCallProgress) => void;
+    onReceiptEvidence?: (evidence: SponsoredCallReceiptEvidence) => void | Promise<void>;
+    onSubmissionEvidence?: (evidence: SponsoredCallSubmissionEvidence) => void | Promise<void>;
     // (undocumented)
     operationKey: string;
     // (undocumented)
@@ -420,6 +768,308 @@ export interface ExecuteSponsoredCallInput {
     sender: string;
     // (undocumented)
     signal?: AbortSignal;
+}
+
+// @public
+export interface FilerDownloadClients {
+    // (undocumented)
+    publicDownloadClient: SdkKeylessServiceClient;
+    // (undocumented)
+    signedDownloadClient: SdkKeylessServiceClient;
+}
+
+// @public (undocumented)
+export interface FilerDownloadInput extends FilerFileIdInput {
+    // (undocumented)
+    size?: string;
+}
+
+// @public
+export interface FilerFile {
+    // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly created_at?: string;
+    // (undocumented)
+    readonly description?: string;
+    // (undocumented)
+    readonly entities?: Readonly<Record<string, FilerFile>>;
+    // (undocumented)
+    readonly filename?: string;
+    // (undocumented)
+    readonly has_cached_link?: boolean;
+    // (undocumented)
+    readonly id?: number;
+    // (undocumented)
+    readonly meta_data?: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    readonly mime?: string;
+    // (undocumented)
+    readonly name?: string;
+    // (undocumented)
+    readonly original_ext?: string;
+    // (undocumented)
+    readonly original_filename?: string;
+    // (undocumented)
+    readonly parent_folder_id?: number;
+    // (undocumented)
+    readonly type?: FilerFileType;
+    // (undocumented)
+    readonly updated_at?: string;
+    // (undocumented)
+    readonly url?: string;
+}
+
+// @public (undocumented)
+export interface FilerFileIdInput {
+    // (undocumented)
+    id: number;
+    // (undocumented)
+    request?: ResourceRequestOptions;
+}
+
+// @public
+export type FilerFileType = 'folder' | 'file' | 'file_thumbnail' | 'link' | (string & {});
+
+// @public
+export type FilerGenericUploadRequest = FilerUploadingSignedUrlBase & {
+    readonly group_id?: number;
+    readonly user_id?: number;
+};
+
+// @public (undocumented)
+export interface FilerObjectInput {
+    // (undocumented)
+    objectPath: string;
+    // (undocumented)
+    request?: ResourceRequestOptions;
+}
+
+// @public
+export interface FilerOfferFolderRequest {
+    // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly name: string;
+    // (undocumented)
+    readonly offer_id: number;
+    // (undocumented)
+    readonly parent_folder_id?: number;
+}
+
+// @public
+export type FilerOfferUploadRequest = FilerUploadingSignedUrlBase & {
+    readonly display_name: string;
+    readonly offer_id: number;
+};
+
+// @public (undocumented)
+export interface FilerResource {
+    // (undocumented)
+    createOfferFolder(input: CreateFilerFolderInput): Promise<SdkResult<FilerFile>>;
+    // (undocumented)
+    createUploadUrl(input: CreateFilerUploadUrlInput): Promise<SdkResult<FilerSignedUrlResponse>>;
+    // (undocumented)
+    deleteFile(input: DeleteFilerFileInput): Promise<SdkResult<string>>;
+    // (undocumented)
+    downloadFile(input: FilerDownloadInput): Promise<SdkResult<Blob>>;
+    // (undocumented)
+    downloadPublicFile(input: FilerDownloadInput): Promise<SdkResult<Blob>>;
+    // (undocumented)
+    getAuthenticatedObject(input: FilerObjectInput): Promise<SdkResult<FilerFile>>;
+    // (undocumented)
+    getFileLink(input: FilerFileIdInput): Promise<SdkResult<FilerFile>>;
+    // (undocumented)
+    getMyObjects(request?: ResourceRequestOptions): Promise<SdkResult<FilerFile>>;
+    // (undocumented)
+    getPublicObject(input: FilerObjectInput): Promise<SdkResult<FilerFile>>;
+    // (undocumented)
+    provisionWorkspace(input: ProvisionFilerWorkspaceInput): Promise<SdkResult<string>>;
+}
+
+// @public
+export interface FilerSignedUrlResponse {
+    // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly meta?: FilerFile;
+    // (undocumented)
+    readonly url?: string;
+}
+
+// @public
+export interface FilerUploadingSignedUrlBase {
+    // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly display_name?: string;
+    // (undocumented)
+    readonly filename: string;
+    // (undocumented)
+    readonly group_id?: number;
+    // (undocumented)
+    readonly is_public?: boolean;
+    // (undocumented)
+    readonly meta_data?: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    readonly mime: string;
+    // (undocumented)
+    readonly offer_id?: number;
+    // (undocumented)
+    readonly parent_folder_id?: number;
+    // (undocumented)
+    readonly path?: string;
+    // (undocumented)
+    readonly user_id?: number;
+}
+
+// @public
+export type FilerUploadRequest = FilerGenericUploadRequest | FilerOfferUploadRequest;
+
+// @public
+export interface FilerWorkspaceRequest {
+    // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly object_id: number;
+    // (undocumented)
+    readonly object_type: 'offer';
+}
+
+// @public
+export interface FINRAAffiliated {
+    // (undocumented)
+    readonly compliance_contact_name: string;
+    // (undocumented)
+    readonly compliance_contant_email: string;
+    // (undocumented)
+    readonly correspondence?: boolean;
+    // (undocumented)
+    readonly member_association?: boolean;
+    // (undocumented)
+    readonly member_firm_name: string;
+}
+
+// @public
+export interface FINRAAffiliatedRequestInput {
+    // (undocumented)
+    readonly compliance_contact_name: string;
+    // (undocumented)
+    readonly compliance_contant_email: string;
+    // (undocumented)
+    readonly correspondence?: boolean;
+    // (undocumented)
+    readonly member_association?: boolean;
+    // (undocumented)
+    readonly member_firm_name: string;
+}
+
+// @public (undocumented)
+export interface FormsResource {
+    // (undocumented)
+    createIncomingRequest(input: CreateIncomingRequestInput): Promise<SdkResult<IncomingRequestResponse>>;
+}
+
+// @public
+export interface FundManagerAdminData {
+    // (undocumented)
+    readonly apiGaps: readonly OpenRecord[];
+    // (undocumented)
+    readonly auditLogs: readonly OpenRecord[];
+    // (undocumented)
+    readonly capacityRecords: readonly OpenRecord[];
+    // (undocumented)
+    readonly currentMember: Readonly<Record<string, unknown>> | null;
+    // (undocumented)
+    readonly disabledCommands: readonly OpenRecord[];
+    // (undocumented)
+    readonly formTemplates: readonly OpenRecord[];
+    // (undocumented)
+    readonly funds: readonly OpenRecord[];
+    // (undocumented)
+    readonly generatedAt: string;
+    // (undocumented)
+    readonly investors: readonly OpenRecord[];
+    // (undocumented)
+    readonly notifications: readonly OpenRecord[];
+    // (undocumented)
+    readonly onboardingSubmissions: readonly OpenRecord[];
+    // (undocumented)
+    readonly organization: OpenRecord;
+    // (undocumented)
+    readonly permissions: readonly string[];
+    // (undocumented)
+    readonly recentLedger: readonly OpenRecord[];
+    // (undocumented)
+    readonly source: 'webdevelop-api' | (string & {});
+    // (undocumented)
+    readonly teamMembers: readonly OpenRecord[];
+}
+
+// @public
+export interface FundManagerProfile {
+    // (undocumented)
+    readonly accreditation_at?: string;
+    // (undocumented)
+    readonly accreditation_data?: readonly Readonly<Record<string, unknown>>[];
+    // (undocumented)
+    readonly accreditation_status?: string;
+    // (undocumented)
+    readonly created_at?: string;
+    // (undocumented)
+    readonly data?: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    readonly escrow_id?: string;
+    // (undocumented)
+    readonly id?: number;
+    // (undocumented)
+    readonly kyc_at?: string;
+    // (undocumented)
+    readonly kyc_data?: readonly Readonly<Record<string, unknown>>[];
+    // (undocumented)
+    readonly kyc_status?: string;
+    // (undocumented)
+    readonly type?: string;
+    // (undocumented)
+    readonly updated_at?: string;
+    // (undocumented)
+    readonly user_id?: number;
+}
+
+// @public
+export interface FundManagerProfileListResponse {
+    // (undocumented)
+    readonly count?: number;
+    // (undocumented)
+    readonly data?: readonly FundManagerProfile[];
+}
+
+// @public (undocumented)
+export interface FundManagerResource {
+    // (undocumented)
+    getAdminData(input?: GetFundManagerAdminDataInput): Promise<SdkResult<FundManagerAdminData>>;
+}
+
+// @public (undocumented)
+export interface GetFundManagerAdminDataInput {
+    // (undocumented)
+    action?: string;
+    // (undocumented)
+    dateFrom?: string;
+    // (undocumented)
+    dateTo?: string;
+    // (undocumented)
+    limit?: number;
+    // (undocumented)
+    offset?: number;
+    // (undocumented)
+    recordId?: string;
+    // (undocumented)
+    recordType?: string;
+    // (undocumented)
+    request?: ResourceRequestOptions;
+    // (undocumented)
+    search?: string;
 }
 
 // @public (undocumented)
@@ -495,6 +1145,224 @@ export interface GetWalletTransactionsInput {
     status?: EvmTransactionStatus;
 }
 
+// @public
+export interface IncomingRequestCreate {
+    // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly data?: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    readonly email: string;
+    // (undocumented)
+    readonly first_name?: string;
+    // (undocumented)
+    readonly last_name?: string;
+}
+
+// @public
+export interface IncomingRequestResponse {
+    // (undocumented)
+    readonly id: number;
+}
+
+// @public
+export interface Individual {
+    // (undocumented)
+    readonly accredited_investor?: AccreditedInvestor;
+    // (undocumented)
+    readonly address1: string;
+    // (undocumented)
+    readonly address2?: string;
+    // (undocumented)
+    readonly annual_income?: number;
+    // (undocumented)
+    readonly beneficiary?: PersonalInformation;
+    // (undocumented)
+    readonly cancelation_restrictions?: boolean;
+    // (undocumented)
+    readonly citizenship?: 'U.S. Citizen' | 'U.S. Resident' | 'Non Resident' | (string & {});
+    // (undocumented)
+    readonly city: string;
+    // (undocumented)
+    readonly country: 'AF' | 'AX' | 'AL' | 'DZ' | 'AS' | 'AD' | 'AO' | 'AI' | 'AQ' | 'AG' | 'AR' | 'AM' | 'AW' | 'AU' | 'AT' | 'AZ' | 'BS' | 'BH' | 'BD' | 'BB' | 'BY' | 'BE' | 'BZ' | 'BJ' | 'BM' | 'BT' | 'BO' | 'BA' | 'BW' | 'BV' | 'BR' | 'IO' | 'BN' | 'BG' | 'BF' | 'BI' | 'KH' | 'CM' | 'CA' | 'CV' | 'KY' | 'CF' | 'TD' | 'CL' | 'CN' | 'CX' | 'CC' | 'CO' | 'KM' | 'CG' | 'CD' | 'CK' | 'CR' | 'HR' | 'CU' | 'CY' | 'CZ' | 'DK' | 'DJ' | 'DM' | 'DO' | 'EC' | 'EG' | 'SV' | 'GQ' | 'ER' | 'EE' | 'ET' | 'FK' | 'FO' | 'FJ' | 'FI' | 'FR' | 'GF' | 'PF' | 'TF' | 'GA' | 'GM' | 'GE' | 'DE' | 'GH' | 'GI' | 'GR' | 'GL' | 'GD' | 'GP' | 'GU' | 'GT' | 'GG' | 'GN' | 'GW' | 'GY' | 'HT' | 'HM' | 'VA' | 'HN' | 'HK' | 'HU' | 'IS' | 'IN' | 'ID' | 'IR' | 'IQ' | 'IE' | 'IM' | 'IL' | 'IT' | 'JM' | 'JP' | 'JE' | 'JO' | 'KZ' | 'KE' | 'KI' | 'KR' | 'KW' | 'KG' | 'LV' | 'LB' | 'LS' | 'LR' | 'LY' | 'LI' | 'LT' | 'LU' | 'MO' | 'MK' | 'MG' | 'MW' | 'MY' | 'MV' | 'ML' | 'MT' | 'MH' | 'MQ' | 'MR' | 'MU' | 'YT' | 'MX' | 'FM' | 'MD' | 'MC' | 'MN' | 'MS' | 'MA' | 'MZ' | 'MM' | 'NA' | 'NR' | 'NP' | 'NL' | 'AN' | 'NC' | 'NZ' | 'NI' | 'NE' | 'NG' | 'NU' | 'NF' | 'MP' | 'NO' | 'OM' | 'PK' | 'PW' | 'PS' | 'PA' | 'PG' | 'PY' | 'PE' | 'PH' | 'PN' | 'PL' | 'PT' | 'PR' | 'QA' | 'RE' | 'RO' | 'RU' | 'RW' | 'SH' | 'KN' | 'LC' | 'PM' | 'VC' | 'WS' | 'SM' | 'ST' | 'SA' | 'SN' | 'CS' | 'SC' | 'SL' | 'SG' | 'SK' | 'SI' | 'SB' | 'SO' | 'ZA' | 'GS' | 'ES' | 'LK' | 'SD' | 'SR' | 'SJ' | 'SZ' | 'SE' | 'CH' | 'SY' | 'TW' | 'TJ' | 'TZ' | 'TH' | 'TL' | 'TG' | 'TK' | 'TO' | 'TT' | 'TN' | 'TR' | 'TM' | 'TC' | 'TV' | 'UG' | 'UA' | 'AE' | 'GB' | 'US' | 'UM' | 'UY' | 'UZ' | 'VU' | 'VE' | 'VN' | 'VG' | 'VI' | 'WF' | 'EH' | 'YE' | 'ZM' | 'ZN' | (string & {});
+    // (undocumented)
+    readonly dob: string;
+    // (undocumented)
+    readonly educational_materials?: boolean;
+    // (undocumented)
+    readonly employment?: EmploymentTypes;
+    // (undocumented)
+    readonly finra_affiliated?: FINRAAffiliated;
+    // (undocumented)
+    readonly first_name: string;
+    // (undocumented)
+    readonly invested_external?: number;
+    // (undocumented)
+    readonly investment_objectives?: InvestmentObjectives;
+    // (undocumented)
+    readonly irs_backup_withholding?: boolean;
+    // (undocumented)
+    readonly last_name: string;
+    // (undocumented)
+    readonly limitation_rule?: boolean;
+    // (undocumented)
+    readonly limitation_rule_confirmation?: boolean;
+    // (undocumented)
+    readonly middle_name?: string;
+    // (undocumented)
+    readonly net_worth?: number;
+    // (undocumented)
+    readonly no_legal_advices_from_company?: boolean;
+    // (undocumented)
+    readonly phone: string;
+    // (undocumented)
+    readonly reg_cf?: RegCF;
+    // (undocumented)
+    readonly resell_difficulties?: boolean;
+    // (undocumented)
+    readonly risk_involved?: boolean;
+    // (undocumented)
+    readonly ssn: string;
+    // (undocumented)
+    readonly state: 'AL' | 'AK' | 'AS' | 'AZ' | 'AR' | 'CA' | 'CO' | 'CT' | 'DE' | 'DC' | 'FM' | 'FL' | 'GA' | 'GU' | 'HI' | 'ID' | 'IL' | 'IN' | 'IA' | 'KS' | 'KY' | 'LA' | 'ME' | 'MH' | 'MD' | 'MA' | 'MI' | 'MN' | 'MS' | 'MO' | 'MT' | 'NE' | 'NV' | 'NH' | 'NJ' | 'NM' | 'NY' | 'NC' | 'ND' | 'MP' | 'OH' | 'OK' | 'OR' | 'PW' | 'PA' | 'PR' | 'RI' | 'SC' | 'SD' | 'TN' | 'TX' | 'UT' | 'VT' | 'VI' | 'VA' | 'WA' | 'WV' | 'WI' | 'WY' | (string & {});
+    // (undocumented)
+    readonly ten_percent_shareholder?: TenPercentShareholder;
+    // (undocumented)
+    readonly zip_code: string;
+}
+
+// @public
+export interface IndividualProfileCreateRequest {
+    // (undocumented)
+    readonly accredited_investor?: AccreditedInvestorRequestInput;
+    // (undocumented)
+    readonly address1: string;
+    // (undocumented)
+    readonly address2?: string;
+    // (undocumented)
+    readonly annual_income?: number;
+    // (undocumented)
+    readonly beneficiary?: PersonalInformationRequestInput;
+    // (undocumented)
+    readonly cancelation_restrictions?: boolean;
+    // (undocumented)
+    readonly citizenship?: 'U.S. Citizen' | 'U.S. Resident' | 'Non Resident';
+    // (undocumented)
+    readonly city: string;
+    // (undocumented)
+    readonly country: 'AF' | 'AX' | 'AL' | 'DZ' | 'AS' | 'AD' | 'AO' | 'AI' | 'AQ' | 'AG' | 'AR' | 'AM' | 'AW' | 'AU' | 'AT' | 'AZ' | 'BS' | 'BH' | 'BD' | 'BB' | 'BY' | 'BE' | 'BZ' | 'BJ' | 'BM' | 'BT' | 'BO' | 'BA' | 'BW' | 'BV' | 'BR' | 'IO' | 'BN' | 'BG' | 'BF' | 'BI' | 'KH' | 'CM' | 'CA' | 'CV' | 'KY' | 'CF' | 'TD' | 'CL' | 'CN' | 'CX' | 'CC' | 'CO' | 'KM' | 'CG' | 'CD' | 'CK' | 'CR' | 'HR' | 'CU' | 'CY' | 'CZ' | 'DK' | 'DJ' | 'DM' | 'DO' | 'EC' | 'EG' | 'SV' | 'GQ' | 'ER' | 'EE' | 'ET' | 'FK' | 'FO' | 'FJ' | 'FI' | 'FR' | 'GF' | 'PF' | 'TF' | 'GA' | 'GM' | 'GE' | 'DE' | 'GH' | 'GI' | 'GR' | 'GL' | 'GD' | 'GP' | 'GU' | 'GT' | 'GG' | 'GN' | 'GW' | 'GY' | 'HT' | 'HM' | 'VA' | 'HN' | 'HK' | 'HU' | 'IS' | 'IN' | 'ID' | 'IR' | 'IQ' | 'IE' | 'IM' | 'IL' | 'IT' | 'JM' | 'JP' | 'JE' | 'JO' | 'KZ' | 'KE' | 'KI' | 'KR' | 'KW' | 'KG' | 'LV' | 'LB' | 'LS' | 'LR' | 'LY' | 'LI' | 'LT' | 'LU' | 'MO' | 'MK' | 'MG' | 'MW' | 'MY' | 'MV' | 'ML' | 'MT' | 'MH' | 'MQ' | 'MR' | 'MU' | 'YT' | 'MX' | 'FM' | 'MD' | 'MC' | 'MN' | 'MS' | 'MA' | 'MZ' | 'MM' | 'NA' | 'NR' | 'NP' | 'NL' | 'AN' | 'NC' | 'NZ' | 'NI' | 'NE' | 'NG' | 'NU' | 'NF' | 'MP' | 'NO' | 'OM' | 'PK' | 'PW' | 'PS' | 'PA' | 'PG' | 'PY' | 'PE' | 'PH' | 'PN' | 'PL' | 'PT' | 'PR' | 'QA' | 'RE' | 'RO' | 'RU' | 'RW' | 'SH' | 'KN' | 'LC' | 'PM' | 'VC' | 'WS' | 'SM' | 'ST' | 'SA' | 'SN' | 'CS' | 'SC' | 'SL' | 'SG' | 'SK' | 'SI' | 'SB' | 'SO' | 'ZA' | 'GS' | 'ES' | 'LK' | 'SD' | 'SR' | 'SJ' | 'SZ' | 'SE' | 'CH' | 'SY' | 'TW' | 'TJ' | 'TZ' | 'TH' | 'TL' | 'TG' | 'TK' | 'TO' | 'TT' | 'TN' | 'TR' | 'TM' | 'TC' | 'TV' | 'UG' | 'UA' | 'AE' | 'GB' | 'US' | 'UM' | 'UY' | 'UZ' | 'VU' | 'VE' | 'VN' | 'VG' | 'VI' | 'WF' | 'EH' | 'YE' | 'ZM' | 'ZN';
+    // (undocumented)
+    readonly dob: string;
+    // (undocumented)
+    readonly educational_materials?: boolean;
+    // (undocumented)
+    readonly employment?: EmploymentTypesRequestInput;
+    // (undocumented)
+    readonly finra_affiliated?: FINRAAffiliatedRequestInput;
+    // (undocumented)
+    readonly first_name: string;
+    // (undocumented)
+    readonly invested_external?: number;
+    // (undocumented)
+    readonly investment_objectives?: InvestmentObjectivesRequestInput;
+    // (undocumented)
+    readonly irs_backup_withholding?: boolean;
+    // (undocumented)
+    readonly last_name: string;
+    // (undocumented)
+    readonly limitation_rule?: boolean;
+    // (undocumented)
+    readonly limitation_rule_confirmation?: boolean;
+    // (undocumented)
+    readonly middle_name?: string;
+    // (undocumented)
+    readonly net_worth?: number;
+    // (undocumented)
+    readonly no_legal_advices_from_company?: boolean;
+    // (undocumented)
+    readonly phone: string;
+    // (undocumented)
+    readonly reg_cf?: RegCFRequestInput;
+    // (undocumented)
+    readonly resell_difficulties?: boolean;
+    // (undocumented)
+    readonly risk_involved?: boolean;
+    // (undocumented)
+    readonly ssn: string;
+    // (undocumented)
+    readonly state: 'AL' | 'AK' | 'AS' | 'AZ' | 'AR' | 'CA' | 'CO' | 'CT' | 'DE' | 'DC' | 'FM' | 'FL' | 'GA' | 'GU' | 'HI' | 'ID' | 'IL' | 'IN' | 'IA' | 'KS' | 'KY' | 'LA' | 'ME' | 'MH' | 'MD' | 'MA' | 'MI' | 'MN' | 'MS' | 'MO' | 'MT' | 'NE' | 'NV' | 'NH' | 'NJ' | 'NM' | 'NY' | 'NC' | 'ND' | 'MP' | 'OH' | 'OK' | 'OR' | 'PW' | 'PA' | 'PR' | 'RI' | 'SC' | 'SD' | 'TN' | 'TX' | 'UT' | 'VT' | 'VI' | 'VA' | 'WA' | 'WV' | 'WI' | 'WY';
+    // (undocumented)
+    readonly ten_percent_shareholder?: TenPercentShareholderRequestInput;
+    // (undocumented)
+    readonly zip_code: string;
+}
+
+// @public
+export interface IndividualProfileUpdateRequest {
+    // (undocumented)
+    readonly accredited_investor?: AccreditedInvestorRequestInput;
+    // (undocumented)
+    readonly address1?: string;
+    // (undocumented)
+    readonly address2?: string;
+    // (undocumented)
+    readonly annual_income?: number;
+    // (undocumented)
+    readonly beneficiary?: PersonalInformationRequestInput;
+    // (undocumented)
+    readonly cancelation_restrictions?: boolean;
+    // (undocumented)
+    readonly citizenship?: 'U.S. Citizen' | 'U.S. Resident' | 'Non Resident';
+    // (undocumented)
+    readonly city?: string;
+    // (undocumented)
+    readonly country?: 'AF' | 'AX' | 'AL' | 'DZ' | 'AS' | 'AD' | 'AO' | 'AI' | 'AQ' | 'AG' | 'AR' | 'AM' | 'AW' | 'AU' | 'AT' | 'AZ' | 'BS' | 'BH' | 'BD' | 'BB' | 'BY' | 'BE' | 'BZ' | 'BJ' | 'BM' | 'BT' | 'BO' | 'BA' | 'BW' | 'BV' | 'BR' | 'IO' | 'BN' | 'BG' | 'BF' | 'BI' | 'KH' | 'CM' | 'CA' | 'CV' | 'KY' | 'CF' | 'TD' | 'CL' | 'CN' | 'CX' | 'CC' | 'CO' | 'KM' | 'CG' | 'CD' | 'CK' | 'CR' | 'HR' | 'CU' | 'CY' | 'CZ' | 'DK' | 'DJ' | 'DM' | 'DO' | 'EC' | 'EG' | 'SV' | 'GQ' | 'ER' | 'EE' | 'ET' | 'FK' | 'FO' | 'FJ' | 'FI' | 'FR' | 'GF' | 'PF' | 'TF' | 'GA' | 'GM' | 'GE' | 'DE' | 'GH' | 'GI' | 'GR' | 'GL' | 'GD' | 'GP' | 'GU' | 'GT' | 'GG' | 'GN' | 'GW' | 'GY' | 'HT' | 'HM' | 'VA' | 'HN' | 'HK' | 'HU' | 'IS' | 'IN' | 'ID' | 'IR' | 'IQ' | 'IE' | 'IM' | 'IL' | 'IT' | 'JM' | 'JP' | 'JE' | 'JO' | 'KZ' | 'KE' | 'KI' | 'KR' | 'KW' | 'KG' | 'LV' | 'LB' | 'LS' | 'LR' | 'LY' | 'LI' | 'LT' | 'LU' | 'MO' | 'MK' | 'MG' | 'MW' | 'MY' | 'MV' | 'ML' | 'MT' | 'MH' | 'MQ' | 'MR' | 'MU' | 'YT' | 'MX' | 'FM' | 'MD' | 'MC' | 'MN' | 'MS' | 'MA' | 'MZ' | 'MM' | 'NA' | 'NR' | 'NP' | 'NL' | 'AN' | 'NC' | 'NZ' | 'NI' | 'NE' | 'NG' | 'NU' | 'NF' | 'MP' | 'NO' | 'OM' | 'PK' | 'PW' | 'PS' | 'PA' | 'PG' | 'PY' | 'PE' | 'PH' | 'PN' | 'PL' | 'PT' | 'PR' | 'QA' | 'RE' | 'RO' | 'RU' | 'RW' | 'SH' | 'KN' | 'LC' | 'PM' | 'VC' | 'WS' | 'SM' | 'ST' | 'SA' | 'SN' | 'CS' | 'SC' | 'SL' | 'SG' | 'SK' | 'SI' | 'SB' | 'SO' | 'ZA' | 'GS' | 'ES' | 'LK' | 'SD' | 'SR' | 'SJ' | 'SZ' | 'SE' | 'CH' | 'SY' | 'TW' | 'TJ' | 'TZ' | 'TH' | 'TL' | 'TG' | 'TK' | 'TO' | 'TT' | 'TN' | 'TR' | 'TM' | 'TC' | 'TV' | 'UG' | 'UA' | 'AE' | 'GB' | 'US' | 'UM' | 'UY' | 'UZ' | 'VU' | 'VE' | 'VN' | 'VG' | 'VI' | 'WF' | 'EH' | 'YE' | 'ZM' | 'ZN';
+    // (undocumented)
+    readonly dob?: string;
+    // (undocumented)
+    readonly educational_materials?: boolean;
+    // (undocumented)
+    readonly employment?: EmploymentTypesRequestInput;
+    // (undocumented)
+    readonly finra_affiliated?: FINRAAffiliatedRequestInput;
+    // (undocumented)
+    readonly first_name?: string;
+    // (undocumented)
+    readonly invested_external?: number;
+    // (undocumented)
+    readonly investment_objectives?: InvestmentObjectivesRequestInput;
+    // (undocumented)
+    readonly irs_backup_withholding?: boolean;
+    // (undocumented)
+    readonly last_name?: string;
+    // (undocumented)
+    readonly limitation_rule?: boolean;
+    // (undocumented)
+    readonly limitation_rule_confirmation?: boolean;
+    // (undocumented)
+    readonly middle_name?: string;
+    // (undocumented)
+    readonly net_worth?: number;
+    // (undocumented)
+    readonly no_legal_advices_from_company?: boolean;
+    // (undocumented)
+    readonly phone?: string;
+    // (undocumented)
+    readonly reg_cf?: RegCFRequestInput;
+    // (undocumented)
+    readonly resell_difficulties?: boolean;
+    // (undocumented)
+    readonly risk_involved?: boolean;
+    // (undocumented)
+    readonly ssn?: string;
+    // (undocumented)
+    readonly state?: 'AL' | 'AK' | 'AS' | 'AZ' | 'AR' | 'CA' | 'CO' | 'CT' | 'DE' | 'DC' | 'FM' | 'FL' | 'GA' | 'GU' | 'HI' | 'ID' | 'IL' | 'IN' | 'IA' | 'KS' | 'KY' | 'LA' | 'ME' | 'MH' | 'MD' | 'MA' | 'MI' | 'MN' | 'MS' | 'MO' | 'MT' | 'NE' | 'NV' | 'NH' | 'NJ' | 'NM' | 'NY' | 'NC' | 'ND' | 'MP' | 'OH' | 'OK' | 'OR' | 'PW' | 'PA' | 'PR' | 'RI' | 'SC' | 'SD' | 'TN' | 'TX' | 'UT' | 'VT' | 'VI' | 'VA' | 'WA' | 'WV' | 'WI' | 'WY';
+    // (undocumented)
+    readonly ten_percent_shareholder?: TenPercentShareholderRequestInput;
+    // (undocumented)
+    readonly zip_code?: string;
+}
+
 // @alpha (undocumented)
 export function inspectEip7702Bytecode(codeValue: unknown, expectedDelegateAddress?: string): Eip7702DelegationInspection;
 
@@ -529,33 +1397,33 @@ export interface InvestmentDetail {
     // (undocumented)
     readonly deposit_nav_version?: number | null;
     // (undocumented)
-    readonly deposit_price_source?: 'offer_deck' | 'finalized_nav' | 'chain_forward_nav' | null;
+    readonly deposit_price_source?: 'offer_deck' | 'finalized_nav' | 'chain_forward_nav' | (string & {}) | null;
     // (undocumented)
     readonly deposit_price_usdc_raw?: RawUint256 | null;
     // (undocumented)
     readonly deposit_priced_at?: string | null;
     // (undocumented)
-    readonly deposit_pricing_status?: 'awaiting_dealing_nav' | 'priced';
+    readonly deposit_pricing_status?: 'awaiting_dealing_nav' | 'priced' | (string & {});
     // (undocumented)
     readonly entity_id?: string;
     // (undocumented)
     readonly escrow_data?: Readonly<Record<string, unknown>>;
     // (undocumented)
-    readonly escrow_type?: 'none' | 'north_capital' | 'prime_trust' | 'apex_group';
+    readonly escrow_type?: 'none' | 'north_capital' | 'prime_trust' | 'apex_group' | (string & {});
     // (undocumented)
-    readonly funding_status?: 'creation_error' | 'new' | 'initialize' | 'in_progress' | 'received' | 'settled' | 'failed' | 'sent_back_pending' | 'sent_back_settled' | 'canceled';
+    readonly funding_status?: 'creation_error' | 'new' | 'initialize' | 'in_progress' | 'received' | 'settled' | 'failed' | 'sent_back_pending' | 'sent_back_settled' | 'canceled' | (string & {});
     // (undocumented)
-    readonly funding_type?: 'none' | 'wire' | 'ach' | 'wallet' | 'crypto_wallet';
+    readonly funding_type?: 'none' | 'wire' | 'ach' | 'wallet' | 'crypto_wallet' | (string & {});
     // (undocumented)
     readonly id?: number;
     // (undocumented)
-    readonly number_of_shares?: string;
+    readonly number_of_shares?: string | null;
     // (undocumented)
     readonly offer?: Offer;
     // (undocumented)
     readonly payment_data?: PaymentData;
     // (undocumented)
-    readonly payment_type?: 'none' | 'dwolla' | 'north_capital' | 'easternpointtrust.' | 'apex_group' | 'evm' | 'solana';
+    readonly payment_type?: 'none' | 'dwolla' | 'north_capital' | 'easternpointtrust.' | 'apex_group' | 'evm' | 'solana' | (string & {});
     // (undocumented)
     readonly pending_assets_raw?: RawUint256;
     // (undocumented)
@@ -563,21 +1431,21 @@ export interface InvestmentDetail {
     // (undocumented)
     readonly profile_id?: number;
     // (undocumented)
-    readonly protocol_state?: 'unconfirmed' | 'pending' | 'claimable' | 'claimed';
+    readonly protocol_state?: 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | (string & {});
     // (undocumented)
     readonly request_controller_address?: EvmAddress | null;
     // (undocumented)
     readonly request_controller_chain_account_id?: number | null;
     // (undocumented)
-    readonly request_effect_state?: 'assigned' | 'unassigned';
+    readonly request_effect_state?: 'assigned' | 'unassigned' | (string & {});
     // (undocumented)
     readonly share_amount_raw?: RawUint256 | null;
     // (undocumented)
     readonly signature_data?: Readonly<Record<string, unknown>>;
     // (undocumented)
-    readonly status?: 'new' | 'confirmed' | 'legally_confirmed' | 'closed_successfully' | 'cancelled_during_investment' | 'cancelled_after_investment' | 'cancelled_by_manager' | 'sold' | 'exited' | 'system_error';
+    readonly status?: 'new' | 'confirmed' | 'legally_confirmed' | 'closed_successfully' | 'cancelled_during_investment' | 'cancelled_after_investment' | 'cancelled_by_manager' | 'sold' | 'exited' | 'system_error' | (string & {});
     // (undocumented)
-    readonly step?: 'none' | 'new' | 'amount' | 'ownership' | 'signature' | 'funding' | 'review';
+    readonly step?: 'none' | 'new' | 'amount' | 'ownership' | 'signature' | 'funding' | 'review' | (string & {});
     // (undocumented)
     readonly submited_at?: string;
     // (undocumented)
@@ -597,7 +1465,7 @@ export interface InvestmentDetail {
     // (undocumented)
     readonly vault_request_locked_at?: string | null;
     // (undocumented)
-    readonly vault_request_origin?: 'application' | 'chain';
+    readonly vault_request_origin?: 'application' | 'chain' | (string & {});
     // (undocumented)
     readonly vault_requested_at?: string | null;
 }
@@ -611,6 +1479,34 @@ export interface InvestmentListResponse {
     readonly count?: number;
     // (undocumented)
     readonly data?: readonly InvestmentDetail[];
+}
+
+// @public
+export interface InvestmentObjectives {
+    // (undocumented)
+    readonly duration?: '1 to 3 years' | '4-7 years' | '8-10 years' | '11+ years' | (string & {});
+    // (undocumented)
+    readonly importance_of_access?: 'Very Important' | 'Somewhat Important' | 'Not Important' | (string & {});
+    // (undocumented)
+    readonly objectives?: 'growth' | 'income' | 'capital appreciation' | 'speculation' | 'tax mitigation' | (string & {});
+    // (undocumented)
+    readonly risk_comfort?: 'low risk' | 'medium risk' | 'high risk' | 'speculative risk' | (string & {});
+    // (undocumented)
+    readonly years_experience?: number;
+}
+
+// @public
+export interface InvestmentObjectivesRequestInput {
+    // (undocumented)
+    readonly duration?: '1 to 3 years' | '4-7 years' | '8-10 years' | '11+ years';
+    // (undocumented)
+    readonly importance_of_access?: 'Very Important' | 'Somewhat Important' | 'Not Important';
+    // (undocumented)
+    readonly objectives?: 'growth' | 'income' | 'capital appreciation' | 'speculation' | 'tax mitigation';
+    // (undocumented)
+    readonly risk_comfort?: 'low risk' | 'medium risk' | 'high risk' | 'speculative risk';
+    // (undocumented)
+    readonly years_experience?: number;
 }
 
 // @public
@@ -676,6 +1572,32 @@ export interface InvestmentStepInput {
     request?: InvestmentsResourceRequestOptions;
 }
 
+// @public
+export interface InvestorInvitationAcceptResponse {
+    // (undocumented)
+    readonly investor: AcceptedInvestor;
+    // (undocumented)
+    readonly invitation: InvitationResponse;
+    // (undocumented)
+    readonly selectedProfileType: 'individual' | 'entity' | 'trust' | 'sdira' | 'solo401k' | (string & {});
+    // (undocumented)
+    readonly source: 'webdevelop-api' | (string & {});
+}
+
+// @public
+export interface InvestorInvitationCreate {
+    // (undocumented)
+    readonly email: string;
+    // (undocumented)
+    readonly firstName: string;
+    // (undocumented)
+    readonly formTemplateId?: string | null;
+    // (undocumented)
+    readonly lastName: string;
+    // (undocumented)
+    readonly profileType: 'individual' | 'entity' | 'trust' | 'sdira' | 'solo401k';
+}
+
 // @public (undocumented)
 export class InvestSdkError extends Error {
     constructor(name: string, code: string, message: string, context?: SdkErrorContext);
@@ -702,6 +1624,8 @@ export class InvestSdkError extends Error {
 // @public (undocumented)
 export interface InvestSdkTransport {
     // (undocumented)
+    createKeylessServiceClient(service: string): SdkKeylessServiceClient;
+    // (undocumented)
     createServiceClient(service: string): SdkServiceClient;
     // (undocumented)
     dispose(): void;
@@ -723,8 +1647,10 @@ export interface InvestSdkTransportConfig {
     hooks?: SdkHooks;
     // (undocumented)
     maxErrorBodyBytes?: number;
+    maxTextResponseBodyBytes?: number;
     now?: () => number;
     random?: () => number;
+    resolveResponseSource?: (response: Response) => SdkResultSource;
     // (undocumented)
     retry?: SdkRetryPolicy;
     // (undocumented)
@@ -734,12 +1660,163 @@ export interface InvestSdkTransportConfig {
     timeoutMs?: number | null;
 }
 
+// @public
+export interface InvitationAcceptRequest {
+    // (undocumented)
+    readonly code: string;
+    // (undocumented)
+    readonly selectedProfileType?: 'individual' | 'entity' | 'trust' | null;
+}
+
+// @public (undocumented)
+export type InvitationAcceptResponse = TeamInvitationAcceptResponse | InvestorInvitationAcceptResponse;
+
+// @public
+export interface InvitationCode {
+    // (undocumented)
+    readonly code: string;
+}
+
+// @public (undocumented)
+export interface InvitationIdentityInput {
+    // (undocumented)
+    id: string;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public
+export interface InvitationListResponse {
+    // (undocumented)
+    readonly count: number;
+    // (undocumented)
+    readonly data: readonly InvitationResponse[];
+    // (undocumented)
+    readonly source: 'webdevelop-api' | (string & {});
+}
+
+// @public
+export interface InvitationManagerCapability {
+    // (undocumented)
+    readonly canRead: boolean;
+    // (undocumented)
+    readonly canWrite: boolean;
+}
+
+// @public
+export interface InvitationManagerContext {
+    // (undocumented)
+    readonly capabilities: {
+        readonly investors: InvitationManagerCapability;
+        readonly team: InvitationManagerCapability;
+    };
+}
+
+// @public
+export interface InvitationPreviewResponse {
+    // (undocumented)
+    readonly email: string;
+    // (undocumented)
+    readonly expiresAt: string;
+    // (undocumented)
+    readonly firstName: string;
+    // (undocumented)
+    readonly kind: 'team' | 'investor' | (string & {});
+    // (undocumented)
+    readonly lastName: string;
+    // (undocumented)
+    readonly profileType?: 'individual' | 'entity' | 'trust' | 'sdira' | 'solo401k' | (string & {});
+}
+
+// @public
+export interface InvitationResponse {
+    // (undocumented)
+    readonly acceptedProfileId: string | null;
+    // (undocumented)
+    readonly acceptedUserId: string | null;
+    // (undocumented)
+    readonly email: string;
+    // (undocumented)
+    readonly expiresAt: string;
+    // (undocumented)
+    readonly firstName: string;
+    // (undocumented)
+    readonly formTemplateId?: string | null;
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly invitedBy: string;
+    // (undocumented)
+    readonly kind: 'team' | 'investor' | (string & {});
+    // (undocumented)
+    readonly lastName: string;
+    // (undocumented)
+    readonly profileType?: 'individual' | 'entity' | 'trust' | 'sdira' | 'solo401k' | (string & {});
+    // (undocumented)
+    readonly requiresRegistration: boolean;
+    // (undocumented)
+    readonly role?: 'Owner' | 'Admin' | 'Ops' | 'Auditor' | (string & {});
+    // (undocumented)
+    readonly source: 'webdevelop-api' | (string & {});
+    // (undocumented)
+    readonly status: 'pending' | 'accepted' | 'expired' | 'cancelled' | (string & {});
+}
+
+// @public (undocumented)
+export interface InvitationsResource {
+    // (undocumented)
+    accept(input: AcceptInvitationInput): Promise<SdkResult<InvitationAcceptResponse>>;
+    // (undocumented)
+    cancelInvestor(input: InvitationIdentityInput): Promise<SdkResult<InvitationResponse>>;
+    // (undocumented)
+    cancelTeam(input: InvitationIdentityInput): Promise<SdkResult<InvitationResponse>>;
+    // (undocumented)
+    createInvestor(input: CreateInvestorInvitationInput): Promise<SdkResult<InvitationResponse>>;
+    // (undocumented)
+    createTeam(input: CreateTeamInvitationInput): Promise<SdkResult<InvitationResponse>>;
+    // (undocumented)
+    getManagerContext(request?: ResourceRequestOptions): Promise<SdkResult<InvitationManagerContext>>;
+    // (undocumented)
+    listInvestors(input?: ListInvitationsInput): Promise<SdkResult<InvitationListResponse>>;
+    // (undocumented)
+    listTeam(input?: ListInvitationsInput): Promise<SdkResult<InvitationListResponse>>;
+    // (undocumented)
+    preview(input: PreviewInvitationInput): Promise<SdkResult<InvitationPreviewResponse>>;
+    // (undocumented)
+    resendInvestor(input: InvitationIdentityInput): Promise<SdkResult<InvitationResponse>>;
+    // (undocumented)
+    resendTeam(input: InvitationIdentityInput): Promise<SdkResult<InvitationResponse>>;
+}
+
+// @public (undocumented)
+export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'cancelled';
+
+// @alpha
+export const isSponsoredCallEvidenceError: (error: unknown) => error is SponsoredCallEvidenceError;
+
+// @public
+export type JsonSchemaDocument = Readonly<Record<string, unknown>>;
+
 // @public (undocumented)
 export interface ListInvestmentsByOfferInput {
     // (undocumented)
     offerSlug: string;
     // (undocumented)
     request?: InvestmentsResourceRequestOptions;
+}
+
+// @public (undocumented)
+export interface ListInvitationsInput {
+    // (undocumented)
+    limit?: number;
+    // (undocumented)
+    offset?: number;
+    // (undocumented)
+    request?: ResourceRequestOptions;
+    // (undocumented)
+    search?: string;
+    // (undocumented)
+    status?: InvitationStatus;
 }
 
 // @public (undocumented)
@@ -772,8 +1849,65 @@ export interface ListVaultRedemptionsInput {
     request?: VaultResourceRequestOptions;
 }
 
+// @public
+export type MutationResourceRequestOptions = Omit<ResourceRequestOptions, 'idempotencyKey'>;
+
+// @public (undocumented)
+export interface NotificationIdInput {
+    // (undocumented)
+    id: number;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public
+export interface NotificationRecord {
+    // (undocumented)
+    readonly content: string;
+    // (undocumented)
+    readonly created_at: string;
+    // (undocumented)
+    readonly data: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    readonly id: number;
+    // (undocumented)
+    readonly status: string;
+    // (undocumented)
+    readonly type: string;
+    // (undocumented)
+    readonly updated_at: string;
+    // (undocumented)
+    readonly user_id: number;
+}
+
+// @public (undocumented)
+export interface NotificationsResource {
+    // (undocumented)
+    list(request?: ResourceRequestOptions): Promise<SdkResult<readonly NotificationRecord[]>>;
+    // (undocumented)
+    markAllRead(request?: MutationResourceRequestOptions): Promise<SdkResult<string>>;
+    // (undocumented)
+    markRead(input: NotificationIdInput): Promise<SdkResult<string>>;
+    // (undocumented)
+    subscribeDevice(input: SubscribeNotificationDeviceInput): Promise<SdkResult<PushSubscriptionResponse>>;
+}
+
+// @public
+export interface NotificationsResourceClients {
+    // (undocumented)
+    notifications: SdkServiceClient;
+    // (undocumented)
+    users: SdkServiceClient;
+}
+
 // @public (undocumented)
 export const noUserAuth: (options?: Omit<SdkNoUserAuthStrategy, "kind">) => Readonly<SdkNoUserAuthStrategy>;
+
+// @public
+export interface ObjectIdResponse {
+    // (undocumented)
+    readonly id: number;
+}
 
 // @public
 export interface Offer {
@@ -790,7 +1924,7 @@ export interface Offer {
     // (undocumented)
     readonly data?: OfferData;
     // (undocumented)
-    readonly fund_structure?: 'open_ended' | 'closed_ended';
+    readonly fund_structure?: 'open_ended' | 'closed_ended' | (string & {});
     // (undocumented)
     readonly id?: number;
     // (undocumented)
@@ -816,7 +1950,7 @@ export interface Offer {
     // (undocumented)
     readonly state?: string;
     // (undocumented)
-    readonly status?: 'new' | 'draft' | 'legal_review' | 'legal_declined' | 'legal_accepted' | 'published' | 'legal_closed' | 'closed_successfully' | 'closed_unsuccessfully';
+    readonly status?: 'new' | 'draft' | 'legal_review' | 'legal_declined' | 'legal_accepted' | 'published' | 'legal_closed' | 'closed_successfully' | 'closed_unsuccessfully' | (string & {});
     // (undocumented)
     readonly subscribed_shares?: string | null;
     // (undocumented)
@@ -828,7 +1962,7 @@ export interface Offer {
     // (undocumented)
     readonly tokenization_engine?: string;
     // (undocumented)
-    readonly tokenization_model?: 'none_not_tokenized' | 'issuer_sponsored_onchain_register' | 'issuer_authorized_offchain_register_transfer_instruction' | 'third_party_custodial_entitlement' | 'third_party_linked_security' | 'third_party_synthetic_security_based_swap' | 'platform_entitlement_or_receipt' | 'unknown';
+    readonly tokenization_model?: 'none_not_tokenized' | 'issuer_sponsored_onchain_register' | 'issuer_authorized_offchain_register_transfer_instruction' | 'third_party_custodial_entitlement' | 'third_party_linked_security' | 'third_party_synthetic_security_based_swap' | 'platform_entitlement_or_receipt' | 'unknown' | (string & {});
     // (undocumented)
     readonly total_shares?: string | null;
     // (undocumented)
@@ -872,7 +2006,7 @@ export interface OfferDetailResponse {
     // (undocumented)
     readonly facebook?: string;
     // (undocumented)
-    readonly fund_structure?: 'open_ended' | 'closed_ended';
+    readonly fund_structure?: 'open_ended' | 'closed_ended' | (string & {});
     // (undocumented)
     readonly github?: string;
     // (undocumented)
@@ -956,7 +2090,7 @@ export interface OfferInvestmentProfile {
     // (undocumented)
     readonly accreditation_at?: string | null;
     // (undocumented)
-    readonly accreditation_status?: 'new' | 'pending' | 'info_required' | 'approved' | 'declined' | 'expired';
+    readonly accreditation_status?: 'new' | 'pending' | 'info_required' | 'approved' | 'declined' | 'expired' | (string & {});
     // (undocumented)
     readonly data?: Readonly<Record<string, unknown>>;
     // (undocumented)
@@ -970,9 +2104,9 @@ export interface OfferInvestmentProfile {
     // (undocumented)
     readonly kyc_id?: string | null;
     // (undocumented)
-    readonly kyc_status?: 'new' | 'pending' | 'approved' | 'in_progress' | 'declined';
+    readonly kyc_status?: 'new' | 'pending' | 'approved' | 'in_progress' | 'declined' | (string & {});
     // (undocumented)
-    readonly type?: 'individual' | 'entity' | 'trust' | 'sdira' | 'solo401k';
+    readonly type?: 'individual' | 'entity' | 'trust' | 'sdira' | 'solo401k' | (string & {});
     // (undocumented)
     readonly updated_at?: string;
 }
@@ -983,6 +2117,26 @@ export interface OfferInvestmentProfileListResponse {
     readonly count?: number;
     // (undocumented)
     readonly data?: readonly OfferInvestmentProfile[];
+}
+
+// @public
+export interface OfferLatestFinalizedNAV {
+    // (undocumented)
+    readonly finalized_at: string;
+    // (undocumented)
+    readonly id: number;
+    // (undocumented)
+    readonly nav_share_supply_raw: string;
+    // (undocumented)
+    readonly nav_usdc_raw: string;
+    // (undocumented)
+    readonly valuation_as_of: string;
+    // (undocumented)
+    readonly valuation_block_number: string;
+    // (undocumented)
+    readonly vault_total_supply_raw: string;
+    // (undocumented)
+    readonly version: number;
 }
 
 // @public
@@ -998,7 +2152,7 @@ export interface OfferListItemResponse {
     // (undocumented)
     readonly confirmed_shares?: string;
     // (undocumented)
-    readonly fund_structure?: 'open_ended' | 'closed_ended';
+    readonly fund_structure?: 'open_ended' | 'closed_ended' | (string & {});
     // (undocumented)
     readonly id?: number;
     // (undocumented)
@@ -1123,14 +2277,10 @@ export interface OfferOnChainSummary {
     readonly asset_token?: OfferOnChainAssetToken;
     // (undocumented)
     readonly custody?: OfferOnChainCustody;
-    // Warning: (ae-forgotten-export) The symbol "OfferLatestFinalizedNAV" needs to be exported by the entry point api-report.d.ts
-    //
     // (undocumented)
     readonly latest_finalized_nav?: Readonly<Record<string, unknown>> | null | OfferLatestFinalizedNAV;
     // (undocumented)
-    readonly network?: 'ethereum' | 'ethereum-sepolia' | 'polygon' | 'base';
-    // Warning: (ae-forgotten-export) The symbol "OfferSubscriptionAvailability" needs to be exported by the entry point api-report.d.ts
-    //
+    readonly network?: 'ethereum' | 'ethereum-sepolia' | 'polygon' | 'base' | (string & {});
     // (undocumented)
     readonly subscription_availability?: OfferSubscriptionAvailability;
     // (undocumented)
@@ -1161,17 +2311,108 @@ export interface OffersResource {
 export type OffersResourceRequestOptions = Omit<SdkConvenienceRequestOptions, 'operationId' | 'query' | 'responseMode' | 'responseValidator'>;
 
 // @public
+export interface OfferSubscriptionAvailability {
+    // (undocumented)
+    readonly available: boolean;
+    // (undocumented)
+    readonly reason?: 'offer_not_published' | 'not_open_ended' | 'unsupported_tokenization_engine' | 'vault_not_deployed' | (string & {}) | null;
+}
+
+// @public
+export type OpenRecord = Readonly<Record<string, unknown>>;
+
+// @public
 export interface OperationReference {
     // (undocumented)
     readonly id: number;
     // (undocumented)
-    readonly status: 'created' | 'submitted' | 'confirmed' | 'failed';
+    readonly status: 'created' | 'submitted' | 'confirmed' | 'failed' | (string & {});
     // (undocumented)
     readonly tx_hash?: string | null;
 }
 
 // @public (undocumented)
 export function paginateSdk<T, Cursor = string>(options: SdkPaginationOptions<T, Cursor>): AsyncGenerator<T, void, undefined>;
+
+// @public
+export interface PartialIndividual {
+    // (undocumented)
+    readonly accredited_investor?: AccreditedInvestor;
+    // (undocumented)
+    readonly address1?: string;
+    // (undocumented)
+    readonly address2?: string;
+    // (undocumented)
+    readonly annual_income?: number;
+    // (undocumented)
+    readonly beneficiary?: PersonalInformation;
+    // (undocumented)
+    readonly cancelation_restrictions?: boolean;
+    // (undocumented)
+    readonly citizenship?: 'U.S. Citizen' | 'U.S. Resident' | 'Non Resident' | (string & {});
+    // (undocumented)
+    readonly city?: string;
+    // (undocumented)
+    readonly country?: 'AF' | 'AX' | 'AL' | 'DZ' | 'AS' | 'AD' | 'AO' | 'AI' | 'AQ' | 'AG' | 'AR' | 'AM' | 'AW' | 'AU' | 'AT' | 'AZ' | 'BS' | 'BH' | 'BD' | 'BB' | 'BY' | 'BE' | 'BZ' | 'BJ' | 'BM' | 'BT' | 'BO' | 'BA' | 'BW' | 'BV' | 'BR' | 'IO' | 'BN' | 'BG' | 'BF' | 'BI' | 'KH' | 'CM' | 'CA' | 'CV' | 'KY' | 'CF' | 'TD' | 'CL' | 'CN' | 'CX' | 'CC' | 'CO' | 'KM' | 'CG' | 'CD' | 'CK' | 'CR' | 'HR' | 'CU' | 'CY' | 'CZ' | 'DK' | 'DJ' | 'DM' | 'DO' | 'EC' | 'EG' | 'SV' | 'GQ' | 'ER' | 'EE' | 'ET' | 'FK' | 'FO' | 'FJ' | 'FI' | 'FR' | 'GF' | 'PF' | 'TF' | 'GA' | 'GM' | 'GE' | 'DE' | 'GH' | 'GI' | 'GR' | 'GL' | 'GD' | 'GP' | 'GU' | 'GT' | 'GG' | 'GN' | 'GW' | 'GY' | 'HT' | 'HM' | 'VA' | 'HN' | 'HK' | 'HU' | 'IS' | 'IN' | 'ID' | 'IR' | 'IQ' | 'IE' | 'IM' | 'IL' | 'IT' | 'JM' | 'JP' | 'JE' | 'JO' | 'KZ' | 'KE' | 'KI' | 'KR' | 'KW' | 'KG' | 'LV' | 'LB' | 'LS' | 'LR' | 'LY' | 'LI' | 'LT' | 'LU' | 'MO' | 'MK' | 'MG' | 'MW' | 'MY' | 'MV' | 'ML' | 'MT' | 'MH' | 'MQ' | 'MR' | 'MU' | 'YT' | 'MX' | 'FM' | 'MD' | 'MC' | 'MN' | 'MS' | 'MA' | 'MZ' | 'MM' | 'NA' | 'NR' | 'NP' | 'NL' | 'AN' | 'NC' | 'NZ' | 'NI' | 'NE' | 'NG' | 'NU' | 'NF' | 'MP' | 'NO' | 'OM' | 'PK' | 'PW' | 'PS' | 'PA' | 'PG' | 'PY' | 'PE' | 'PH' | 'PN' | 'PL' | 'PT' | 'PR' | 'QA' | 'RE' | 'RO' | 'RU' | 'RW' | 'SH' | 'KN' | 'LC' | 'PM' | 'VC' | 'WS' | 'SM' | 'ST' | 'SA' | 'SN' | 'CS' | 'SC' | 'SL' | 'SG' | 'SK' | 'SI' | 'SB' | 'SO' | 'ZA' | 'GS' | 'ES' | 'LK' | 'SD' | 'SR' | 'SJ' | 'SZ' | 'SE' | 'CH' | 'SY' | 'TW' | 'TJ' | 'TZ' | 'TH' | 'TL' | 'TG' | 'TK' | 'TO' | 'TT' | 'TN' | 'TR' | 'TM' | 'TC' | 'TV' | 'UG' | 'UA' | 'AE' | 'GB' | 'US' | 'UM' | 'UY' | 'UZ' | 'VU' | 'VE' | 'VN' | 'VG' | 'VI' | 'WF' | 'EH' | 'YE' | 'ZM' | 'ZN' | (string & {});
+    // (undocumented)
+    readonly dob?: string;
+    // (undocumented)
+    readonly educational_materials?: boolean;
+    // (undocumented)
+    readonly employment?: EmploymentTypes;
+    // (undocumented)
+    readonly finra_affiliated?: FINRAAffiliated;
+    // (undocumented)
+    readonly first_name?: string;
+    // (undocumented)
+    readonly invested_external?: number;
+    // (undocumented)
+    readonly investment_objectives?: InvestmentObjectives;
+    // (undocumented)
+    readonly irs_backup_withholding?: boolean;
+    // (undocumented)
+    readonly last_name?: string;
+    // (undocumented)
+    readonly limitation_rule?: boolean;
+    // (undocumented)
+    readonly limitation_rule_confirmation?: boolean;
+    // (undocumented)
+    readonly middle_name?: string;
+    // (undocumented)
+    readonly net_worth?: number;
+    // (undocumented)
+    readonly no_legal_advices_from_company?: boolean;
+    // (undocumented)
+    readonly phone?: string;
+    // (undocumented)
+    readonly reg_cf?: RegCF;
+    // (undocumented)
+    readonly resell_difficulties?: boolean;
+    // (undocumented)
+    readonly risk_involved?: boolean;
+    // (undocumented)
+    readonly ssn?: string;
+    // (undocumented)
+    readonly state?: 'AL' | 'AK' | 'AS' | 'AZ' | 'AR' | 'CA' | 'CO' | 'CT' | 'DE' | 'DC' | 'FM' | 'FL' | 'GA' | 'GU' | 'HI' | 'ID' | 'IL' | 'IN' | 'IA' | 'KS' | 'KY' | 'LA' | 'ME' | 'MH' | 'MD' | 'MA' | 'MI' | 'MN' | 'MS' | 'MO' | 'MT' | 'NE' | 'NV' | 'NH' | 'NJ' | 'NM' | 'NY' | 'NC' | 'ND' | 'MP' | 'OH' | 'OK' | 'OR' | 'PW' | 'PA' | 'PR' | 'RI' | 'SC' | 'SD' | 'TN' | 'TX' | 'UT' | 'VT' | 'VI' | 'VA' | 'WA' | 'WV' | 'WI' | 'WY' | (string & {});
+    // (undocumented)
+    readonly ten_percent_shareholder?: TenPercentShareholder;
+    // (undocumented)
+    readonly zip_code?: string;
+}
+
+// @public
+export interface PartialUserUpdate {
+    // (undocumented)
+    readonly first_name?: string;
+    // (undocumented)
+    readonly id?: number;
+    // (undocumented)
+    readonly image_link_id?: number | null;
+    // (undocumented)
+    readonly last_name?: string;
+    // (undocumented)
+    readonly phone?: string;
+}
 
 // @public
 export interface PaymentData {
@@ -1208,6 +2449,74 @@ export interface PendingSponsoredCall {
 }
 
 // @public
+export interface PersonalInformation {
+    // (undocumented)
+    readonly address1?: string;
+    // (undocumented)
+    readonly address2?: string;
+    // (undocumented)
+    readonly citizenship?: 'U.S. Citizen' | 'U.S. Resident' | 'Non Resident' | (string & {});
+    // (undocumented)
+    readonly city?: string;
+    // (undocumented)
+    readonly country?: 'AF' | 'AX' | 'AL' | 'DZ' | 'AS' | 'AD' | 'AO' | 'AI' | 'AQ' | 'AG' | 'AR' | 'AM' | 'AW' | 'AU' | 'AT' | 'AZ' | 'BS' | 'BH' | 'BD' | 'BB' | 'BY' | 'BE' | 'BZ' | 'BJ' | 'BM' | 'BT' | 'BO' | 'BA' | 'BW' | 'BV' | 'BR' | 'IO' | 'BN' | 'BG' | 'BF' | 'BI' | 'KH' | 'CM' | 'CA' | 'CV' | 'KY' | 'CF' | 'TD' | 'CL' | 'CN' | 'CX' | 'CC' | 'CO' | 'KM' | 'CG' | 'CD' | 'CK' | 'CR' | 'HR' | 'CU' | 'CY' | 'CZ' | 'DK' | 'DJ' | 'DM' | 'DO' | 'EC' | 'EG' | 'SV' | 'GQ' | 'ER' | 'EE' | 'ET' | 'FK' | 'FO' | 'FJ' | 'FI' | 'FR' | 'GF' | 'PF' | 'TF' | 'GA' | 'GM' | 'GE' | 'DE' | 'GH' | 'GI' | 'GR' | 'GL' | 'GD' | 'GP' | 'GU' | 'GT' | 'GG' | 'GN' | 'GW' | 'GY' | 'HT' | 'HM' | 'VA' | 'HN' | 'HK' | 'HU' | 'IS' | 'IN' | 'ID' | 'IR' | 'IQ' | 'IE' | 'IM' | 'IL' | 'IT' | 'JM' | 'JP' | 'JE' | 'JO' | 'KZ' | 'KE' | 'KI' | 'KR' | 'KW' | 'KG' | 'LV' | 'LB' | 'LS' | 'LR' | 'LY' | 'LI' | 'LT' | 'LU' | 'MO' | 'MK' | 'MG' | 'MW' | 'MY' | 'MV' | 'ML' | 'MT' | 'MH' | 'MQ' | 'MR' | 'MU' | 'YT' | 'MX' | 'FM' | 'MD' | 'MC' | 'MN' | 'MS' | 'MA' | 'MZ' | 'MM' | 'NA' | 'NR' | 'NP' | 'NL' | 'AN' | 'NC' | 'NZ' | 'NI' | 'NE' | 'NG' | 'NU' | 'NF' | 'MP' | 'NO' | 'OM' | 'PK' | 'PW' | 'PS' | 'PA' | 'PG' | 'PY' | 'PE' | 'PH' | 'PN' | 'PL' | 'PT' | 'PR' | 'QA' | 'RE' | 'RO' | 'RU' | 'RW' | 'SH' | 'KN' | 'LC' | 'PM' | 'VC' | 'WS' | 'SM' | 'ST' | 'SA' | 'SN' | 'CS' | 'SC' | 'SL' | 'SG' | 'SK' | 'SI' | 'SB' | 'SO' | 'ZA' | 'GS' | 'ES' | 'LK' | 'SD' | 'SR' | 'SJ' | 'SZ' | 'SE' | 'CH' | 'SY' | 'TW' | 'TJ' | 'TZ' | 'TH' | 'TL' | 'TG' | 'TK' | 'TO' | 'TT' | 'TN' | 'TR' | 'TM' | 'TC' | 'TV' | 'UG' | 'UA' | 'AE' | 'GB' | 'US' | 'UM' | 'UY' | 'UZ' | 'VU' | 'VE' | 'VN' | 'VG' | 'VI' | 'WF' | 'EH' | 'YE' | 'ZM' | 'ZN' | (string & {});
+    // (undocumented)
+    readonly dob: string;
+    // (undocumented)
+    readonly email?: string;
+    // (undocumented)
+    readonly first_name: string;
+    // (undocumented)
+    readonly last_name: string;
+    // (undocumented)
+    readonly middle_name?: string;
+    // (undocumented)
+    readonly phone: string;
+    // (undocumented)
+    readonly relationship_type?: string;
+    // (undocumented)
+    readonly ssn?: string;
+    // (undocumented)
+    readonly state?: 'AL' | 'AK' | 'AS' | 'AZ' | 'AR' | 'CA' | 'CO' | 'CT' | 'DE' | 'DC' | 'FM' | 'FL' | 'GA' | 'GU' | 'HI' | 'ID' | 'IL' | 'IN' | 'IA' | 'KS' | 'KY' | 'LA' | 'ME' | 'MH' | 'MD' | 'MA' | 'MI' | 'MN' | 'MS' | 'MO' | 'MT' | 'NE' | 'NV' | 'NH' | 'NJ' | 'NM' | 'NY' | 'NC' | 'ND' | 'MP' | 'OH' | 'OK' | 'OR' | 'PW' | 'PA' | 'PR' | 'RI' | 'SC' | 'SD' | 'TN' | 'TX' | 'UT' | 'VT' | 'VI' | 'VA' | 'WA' | 'WV' | 'WI' | 'WY' | (string & {});
+    // (undocumented)
+    readonly zip_code?: string;
+}
+
+// @public
+export interface PersonalInformationRequestInput {
+    // (undocumented)
+    readonly address1?: string;
+    // (undocumented)
+    readonly address2?: string;
+    // (undocumented)
+    readonly citizenship?: 'U.S. Citizen' | 'U.S. Resident' | 'Non Resident';
+    // (undocumented)
+    readonly city?: string;
+    // (undocumented)
+    readonly country?: 'AF' | 'AX' | 'AL' | 'DZ' | 'AS' | 'AD' | 'AO' | 'AI' | 'AQ' | 'AG' | 'AR' | 'AM' | 'AW' | 'AU' | 'AT' | 'AZ' | 'BS' | 'BH' | 'BD' | 'BB' | 'BY' | 'BE' | 'BZ' | 'BJ' | 'BM' | 'BT' | 'BO' | 'BA' | 'BW' | 'BV' | 'BR' | 'IO' | 'BN' | 'BG' | 'BF' | 'BI' | 'KH' | 'CM' | 'CA' | 'CV' | 'KY' | 'CF' | 'TD' | 'CL' | 'CN' | 'CX' | 'CC' | 'CO' | 'KM' | 'CG' | 'CD' | 'CK' | 'CR' | 'HR' | 'CU' | 'CY' | 'CZ' | 'DK' | 'DJ' | 'DM' | 'DO' | 'EC' | 'EG' | 'SV' | 'GQ' | 'ER' | 'EE' | 'ET' | 'FK' | 'FO' | 'FJ' | 'FI' | 'FR' | 'GF' | 'PF' | 'TF' | 'GA' | 'GM' | 'GE' | 'DE' | 'GH' | 'GI' | 'GR' | 'GL' | 'GD' | 'GP' | 'GU' | 'GT' | 'GG' | 'GN' | 'GW' | 'GY' | 'HT' | 'HM' | 'VA' | 'HN' | 'HK' | 'HU' | 'IS' | 'IN' | 'ID' | 'IR' | 'IQ' | 'IE' | 'IM' | 'IL' | 'IT' | 'JM' | 'JP' | 'JE' | 'JO' | 'KZ' | 'KE' | 'KI' | 'KR' | 'KW' | 'KG' | 'LV' | 'LB' | 'LS' | 'LR' | 'LY' | 'LI' | 'LT' | 'LU' | 'MO' | 'MK' | 'MG' | 'MW' | 'MY' | 'MV' | 'ML' | 'MT' | 'MH' | 'MQ' | 'MR' | 'MU' | 'YT' | 'MX' | 'FM' | 'MD' | 'MC' | 'MN' | 'MS' | 'MA' | 'MZ' | 'MM' | 'NA' | 'NR' | 'NP' | 'NL' | 'AN' | 'NC' | 'NZ' | 'NI' | 'NE' | 'NG' | 'NU' | 'NF' | 'MP' | 'NO' | 'OM' | 'PK' | 'PW' | 'PS' | 'PA' | 'PG' | 'PY' | 'PE' | 'PH' | 'PN' | 'PL' | 'PT' | 'PR' | 'QA' | 'RE' | 'RO' | 'RU' | 'RW' | 'SH' | 'KN' | 'LC' | 'PM' | 'VC' | 'WS' | 'SM' | 'ST' | 'SA' | 'SN' | 'CS' | 'SC' | 'SL' | 'SG' | 'SK' | 'SI' | 'SB' | 'SO' | 'ZA' | 'GS' | 'ES' | 'LK' | 'SD' | 'SR' | 'SJ' | 'SZ' | 'SE' | 'CH' | 'SY' | 'TW' | 'TJ' | 'TZ' | 'TH' | 'TL' | 'TG' | 'TK' | 'TO' | 'TT' | 'TN' | 'TR' | 'TM' | 'TC' | 'TV' | 'UG' | 'UA' | 'AE' | 'GB' | 'US' | 'UM' | 'UY' | 'UZ' | 'VU' | 'VE' | 'VN' | 'VG' | 'VI' | 'WF' | 'EH' | 'YE' | 'ZM' | 'ZN';
+    // (undocumented)
+    readonly dob: string;
+    // (undocumented)
+    readonly email?: string;
+    // (undocumented)
+    readonly first_name: string;
+    // (undocumented)
+    readonly last_name: string;
+    // (undocumented)
+    readonly middle_name?: string;
+    // (undocumented)
+    readonly phone: string;
+    // (undocumented)
+    readonly relationship_type?: string;
+    // (undocumented)
+    readonly ssn?: string;
+    // (undocumented)
+    readonly state?: 'AL' | 'AK' | 'AS' | 'AZ' | 'AR' | 'CA' | 'CO' | 'CT' | 'DE' | 'DC' | 'FM' | 'FL' | 'GA' | 'GU' | 'HI' | 'ID' | 'IL' | 'IN' | 'IA' | 'KS' | 'KY' | 'LA' | 'ME' | 'MH' | 'MD' | 'MA' | 'MI' | 'MN' | 'MS' | 'MO' | 'MT' | 'NE' | 'NV' | 'NH' | 'NJ' | 'NM' | 'NY' | 'NC' | 'ND' | 'MP' | 'OH' | 'OK' | 'OR' | 'PW' | 'PA' | 'PR' | 'RI' | 'SC' | 'SD' | 'TN' | 'TX' | 'UT' | 'VT' | 'VI' | 'VA' | 'WA' | 'WV' | 'WI' | 'WY';
+    // (undocumented)
+    readonly zip_code?: string;
+}
+
+// @public
 export interface PositionResponse {
     // (undocumented)
     readonly position: {
@@ -1217,14 +2526,95 @@ export interface PositionResponse {
     };
 }
 
+// @public (undocumented)
+export interface PreviewInvitationInput {
+    // (undocumented)
+    body: InvitationCode;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public (undocumented)
+export interface ProfileIdentityInput extends ProfileTypeInput {
+    // (undocumented)
+    id: number;
+}
+
+// @public
+export interface ProfileRetrieveResponse {
+    // (undocumented)
+    readonly accreditation_at?: string;
+    // (undocumented)
+    readonly accreditation_data?: readonly Readonly<Record<string, unknown>>[];
+    // (undocumented)
+    readonly accreditation_status?: string;
+    // (undocumented)
+    readonly avarange_annual?: number;
+    // (undocumented)
+    readonly data?: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    readonly escrow_id?: string;
+    // (undocumented)
+    readonly id?: number;
+    // (undocumented)
+    readonly kyc_at?: string;
+    // (undocumented)
+    readonly kyc_data?: readonly Readonly<Record<string, unknown>>[];
+    // (undocumented)
+    readonly kyc_status?: string;
+    // (undocumented)
+    readonly total_distributions?: number;
+    // (undocumented)
+    readonly total_distributions_change_percent?: number;
+    // (undocumented)
+    readonly total_investments?: number;
+    // (undocumented)
+    readonly total_investments_12_months?: number;
+    // (undocumented)
+    readonly total_investments_change_percent?: number;
+    // (undocumented)
+    readonly type?: string;
+    // (undocumented)
+    readonly user_id?: number;
+}
+
+// @public (undocumented)
+export interface ProfilesResource {
+    // (undocumented)
+    create(input: CreateProfileInput): Promise<SdkResult<ObjectIdResponse>>;
+    // (undocumented)
+    get(input: ProfileIdentityInput): Promise<SdkResult<ProfileRetrieveResponse>>;
+    // (undocumented)
+    getCreateSchema(input: ProfileTypeInput): Promise<SdkResult<JsonSchemaDocument>>;
+    // (undocumented)
+    getUpdateSchema(input: ProfileIdentityInput): Promise<SdkResult<JsonSchemaDocument>>;
+    // (undocumented)
+    listFundManagerProfiles(request?: ResourceRequestOptions): Promise<SdkResult<FundManagerProfileListResponse>>;
+    // (undocumented)
+    update(input: UpdateProfileInput): Promise<SdkResult<Individual>>;
+}
+
+// @public (undocumented)
+export type ProfileType = 'individual' | 'entity' | 'trust' | 'sdira' | 'solo401k';
+
+// @public (undocumented)
+export interface ProfileTypeInput {
+    // (undocumented)
+    request?: ResourceRequestOptions;
+    // (undocumented)
+    type: ProfileType;
+}
+
 // @public
 export interface ProfileWalletInfoResponse {
+    // (undocumented)
+    readonly [key: string]: unknown;
     // (undocumented)
     readonly balances?: readonly WalletBalanceResponse[];
     // (undocumented)
     readonly chain?: string;
     // (undocumented)
-    readonly chain_account_status?: 'pending' | 'verified' | 'failed' | 'suspended';
+    readonly chain_account_status?: 'pending' | 'verified' | 'failed' | 'suspended' | (string & {});
     // (undocumented)
     readonly chains?: readonly WalletChainInfoResponse[];
     // (undocumented)
@@ -1240,7 +2630,31 @@ export interface ProfileWalletInfoResponse {
     // (undocumented)
     readonly wallet_address?: string;
     // (undocumented)
-    readonly wallet_status?: 'created' | 'verified' | 'suspended' | 'closed' | 'failed';
+    readonly wallet_status?: 'created' | 'verified' | 'suspended' | 'closed' | 'failed' | (string & {});
+}
+
+// @public (undocumented)
+export interface ProvisionFilerWorkspaceInput {
+    // (undocumented)
+    body: FilerWorkspaceRequest;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public
+export interface PushSubscriptionCreate {
+    // (undocumented)
+    readonly device_token: string;
+    // (undocumented)
+    readonly provider: string;
+}
+
+// @public
+export interface PushSubscriptionResponse {
+    // (undocumented)
+    readonly id: number;
+    // (undocumented)
+    readonly status: string;
 }
 
 // @public
@@ -1295,6 +2709,8 @@ export interface RedemptionDetail {
     // (undocumented)
     readonly dealing_cutoff_block_number?: number | null;
     // (undocumented)
+    readonly dealing_price_usdc_raw?: RawUint256 | null;
+    // (undocumented)
     readonly estimate_delta_raw?: RawSignedInteger | null;
     // (undocumented)
     readonly estimated_asset_amount_raw?: RawUint256 | null;
@@ -1335,17 +2751,23 @@ export interface RedemptionDetail {
     // (undocumented)
     readonly priced_at?: string | null;
     // (undocumented)
-    readonly pricing_status: 'awaiting_dealing_nav' | 'priced';
+    readonly priced_by_user_id?: number | null;
+    // (undocumented)
+    readonly priced_request_effect_id?: number | null;
+    // (undocumented)
+    readonly pricing_source?: string | null;
+    // (undocumented)
+    readonly pricing_status: 'awaiting_dealing_nav' | 'priced' | (string & {});
     // (undocumented)
     readonly profile_id: number;
     // (undocumented)
-    readonly protocol_state: 'unconfirmed' | 'pending' | 'claimable' | 'claimed';
+    readonly protocol_state: 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | (string & {});
     // (undocumented)
     readonly request_controller_address?: EvmAddress;
     // (undocumented)
     readonly request_controller_chain_account_id?: number;
     // (undocumented)
-    readonly request_effect_state?: 'assigned' | 'unassigned';
+    readonly request_effect_state?: 'assigned' | 'unassigned' | (string & {});
     // (undocumented)
     readonly request_locked_at?: string | null;
     // (undocumented)
@@ -1353,7 +2775,7 @@ export interface RedemptionDetail {
     // (undocumented)
     readonly share_amount_raw: RawUint256;
     // (undocumented)
-    readonly status: 'open' | 'completed' | 'cancelled';
+    readonly status: 'open' | 'completed' | 'cancelled' | (string & {});
     // (undocumented)
     readonly transition_version?: number;
     // (undocumented)
@@ -1363,7 +2785,7 @@ export interface RedemptionDetail {
     // (undocumented)
     readonly vault_request_effect_id?: number | null;
     // (undocumented)
-    readonly vault_request_origin: 'application' | 'chain';
+    readonly vault_request_origin: 'application' | 'chain' | (string & {});
 }
 
 // @public
@@ -1387,17 +2809,27 @@ export interface RedemptionFinalPrice {
     // (undocumented)
     readonly asset_amount_raw: RawUint256;
     // (undocumented)
+    readonly dealing_price_usdc_raw?: RawUint256 | null;
+    // (undocumented)
     readonly delta_from_estimate_raw?: RawSignedInteger | null;
     // (undocumented)
-    readonly nav_record_id: number;
+    readonly nav_record_id?: number | null;
     // (undocumented)
-    readonly nav_usdc_raw: RawUint256;
+    readonly nav_usdc_raw?: RawUint256 | null;
     // (undocumented)
-    readonly nav_version: number;
+    readonly nav_version?: number | null;
     // (undocumented)
-    readonly valuation_as_of: string;
+    readonly priced_at?: string | null;
     // (undocumented)
-    readonly valuation_block_number: RawUint256;
+    readonly priced_by_user_id?: number | null;
+    // (undocumented)
+    readonly priced_request_effect_id?: number | null;
+    // (undocumented)
+    readonly pricing_source?: string | null;
+    // (undocumented)
+    readonly valuation_as_of?: string | null;
+    // (undocumented)
+    readonly valuation_block_number?: RawUint256 | null;
 }
 
 // @public
@@ -1414,6 +2846,34 @@ export interface RedemptionResponse {
     readonly redemption: RedemptionDetail;
 }
 
+// @public
+export interface RegCF {
+    // (undocumented)
+    readonly annual_income: number;
+    // (undocumented)
+    readonly invested_external: number;
+    // (undocumented)
+    readonly limitation_rule: boolean;
+    // (undocumented)
+    readonly limitation_rule_confirmation: boolean;
+    // (undocumented)
+    readonly net_worth: number;
+}
+
+// @public
+export interface RegCFRequestInput {
+    // (undocumented)
+    readonly annual_income: number;
+    // (undocumented)
+    readonly invested_external: number;
+    // (undocumented)
+    readonly limitation_rule: boolean;
+    // (undocumented)
+    readonly limitation_rule_confirmation: boolean;
+    // (undocumented)
+    readonly net_worth: number;
+}
+
 // @alpha (undocumented)
 export function resolveTurnkeyWalletAccount(client: Pick<TurnkeyIndexedDbClient, 'getWalletAccounts'>, input: {
     organizationId: string;
@@ -1423,11 +2883,34 @@ export function resolveTurnkeyWalletAccount(client: Pick<TurnkeyIndexedDbClient,
 }): Promise<TurnkeyResolvedWalletAccount>;
 
 // @public
+export type ResourceRequestOptions = Omit<SdkConvenienceRequestOptions, 'operationId' | 'query' | 'responseMode' | 'responseValidator'>;
+
+// @public
+export interface ResponseCreateDistribution {
+    // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly counter?: number;
+}
+
+// @public
+export interface ResponseGetDistributions {
+    // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly count?: number;
+    // (undocumented)
+    readonly data?: readonly Distribution[];
+    // (undocumented)
+    readonly meta?: Readonly<Record<string, unknown>>;
+}
+
+// @public
 export interface ReviewStepResponse {
     // (undocumented)
     readonly investment: {
         readonly id: number;
-        readonly status: 'new' | 'confirmed' | 'legally_confirmed' | 'closed_successfully' | 'cancelled_during_investment' | 'cancelled_after_investment' | 'cancelled_by_manager' | 'sold' | 'exited' | 'system_error';
+        readonly status: 'new' | 'confirmed' | 'legally_confirmed' | 'closed_successfully' | 'cancelled_during_investment' | 'cancelled_after_investment' | 'cancelled_by_manager' | 'sold' | 'exited' | 'system_error' | (string & {});
     };
 }
 
@@ -1438,12 +2921,23 @@ export class SdkAbortError extends InvestSdkError {
 
 // @public (undocumented)
 export class SdkAuthenticationError extends SdkHttpError {
-    constructor(headers: Headers, context: SdkErrorContext);
+    constructor(headers: Headers, context: SdkHttpErrorContext);
+}
+
+// @public (undocumented)
+export interface SdkAuthorizationAuthStrategy {
+    // (undocumented)
+    credentials?: 'omit' | 'same-origin' | 'include';
+    // (undocumented)
+    deduplicationScope?: () => string | null | undefined;
+    getAuthorization: () => string | null | undefined | Promise<string | null | undefined>;
+    // (undocumented)
+    kind: 'authorization';
 }
 
 // @public (undocumented)
 export class SdkAuthorizationError extends SdkHttpError {
-    constructor(headers: Headers, context: SdkErrorContext);
+    constructor(headers: Headers, context: SdkHttpErrorContext);
 }
 
 // @public (undocumented)
@@ -1464,6 +2958,16 @@ export class SdkConfigurationError extends InvestSdkError {
 }
 
 // @public (undocumented)
+export class SdkConflictError extends SdkHttpError {
+    constructor(headers: Headers, context: SdkHttpErrorContext);
+}
+
+// @public
+export type SdkContractResponseValidator<T> = SdkResponseValidator<T> & {
+    readonly exact: SdkResponseValidator<T>;
+};
+
+// @public (undocumented)
 export type SdkConvenienceRequestOptions<Mode extends SdkResponseMode = SdkResponseMode> = Omit<SdkRequestInput<Mode>, 'method' | 'path' | 'body'>;
 
 // @public (undocumented)
@@ -1474,6 +2978,11 @@ export interface SdkCookieAuthStrategy {
     deduplicationScope?: () => string | null | undefined;
     // (undocumented)
     kind: 'cookie';
+}
+
+// @public (undocumented)
+export interface SdkDiagnosticErrorContext extends SdkErrorContext {
+    details?: unknown;
 }
 
 // @public (undocumented)
@@ -1492,6 +3001,7 @@ export interface SdkDiagnosticEvent {
     route: string;
     // (undocumented)
     service: string;
+    source?: SdkResultSource;
     // (undocumented)
     status?: number;
 }
@@ -1531,13 +3041,29 @@ export interface SdkHooks {
 
 // @public (undocumented)
 export class SdkHttpError extends InvestSdkError {
-    constructor(code: string, message: string, headers: Headers, context: SdkErrorContext);
+    constructor(code: string, message: string, headers: Headers, context: SdkHttpErrorContext);
+    // (undocumented)
+    readonly bodyKind: SdkErrorBodyKind;
     // (undocumented)
     readonly headers: Headers;
+    readonly responseBody?: unknown;
 }
 
 // @public (undocumented)
-export type SdkHttpMethod = 'GET' | 'OPTIONS' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+export interface SdkHttpErrorContext extends SdkErrorContext {
+    // (undocumented)
+    bodyKind: SdkErrorBodyKind;
+    responseBody?: unknown;
+}
+
+// @public (undocumented)
+export type SdkHttpMethod = 'GET' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+// @public
+export interface SdkKeylessServiceClient extends SdkServiceClient {
+    // (undocumented)
+    readonly [sdkKeylessServiceClientBrand]: true;
+}
 
 // @public (undocumented)
 export class SdkNetworkError extends InvestSdkError {
@@ -1587,7 +3113,7 @@ export type SdkQueryValue = string | number | boolean | null | undefined;
 
 // @public (undocumented)
 export class SdkRateLimitError extends SdkHttpError {
-    constructor(headers: Headers, retryAfterMs: number | null, context: SdkErrorContext);
+    constructor(headers: Headers, retryAfterMs: number | null, context: SdkHttpErrorContext);
     // (undocumented)
     readonly retryAfterMs: number | null;
 }
@@ -1596,6 +3122,7 @@ export class SdkRateLimitError extends SdkHttpError {
 export interface SdkRequestInput<Mode extends SdkResponseMode = SdkResponseMode> {
     // (undocumented)
     body?: unknown;
+    cache?: RequestCache;
     // (undocumented)
     headers?: HeadersInit;
     idempotencyKey?: string;
@@ -1627,12 +3154,12 @@ export type SdkResponseMode = 'auto' | 'json' | 'text' | 'blob' | 'arrayBuffer';
 
 // @public (undocumented)
 export class SdkResponseParseError extends InvestSdkError {
-    constructor(context: SdkErrorContext);
+    constructor(context: SdkDiagnosticErrorContext);
 }
 
 // @public (undocumented)
 export class SdkResponseValidationError extends InvestSdkError {
-    constructor(context: SdkErrorContext);
+    constructor(context: SdkDiagnosticErrorContext);
 }
 
 // @public
@@ -1647,10 +3174,24 @@ export interface SdkResult<T> {
     // (undocumented)
     headers: Headers;
     // (undocumented)
+    metadata: Readonly<SdkResultMetadata>;
     requestId?: string;
     // (undocumented)
     status: number;
 }
+
+// @public
+export interface SdkResultMetadata {
+    // (undocumented)
+    readonly attempts: number;
+    // (undocumented)
+    readonly requestId: string;
+    // (undocumented)
+    readonly source: SdkResultSource;
+}
+
+// @public
+export type SdkResultSource = 'network' | 'offline-cache' | 'unknown';
 
 // @public (undocumented)
 export interface SdkRetryPolicy {
@@ -1684,6 +3225,14 @@ export interface SdkServiceClient {
     }): Promise<SdkResult<SdkResponseData<Mode>>>;
     // (undocumented)
     get(path: string, options?: SdkConvenienceRequestOptions): Promise<SdkResult<unknown>>;
+    // (undocumented)
+    head<T>(path: string, options: SdkValidatedConvenienceRequestOptions<T>): Promise<SdkResult<T>>;
+    // (undocumented)
+    head<Mode extends 'text' | 'blob' | 'arrayBuffer'>(path: string, options: SdkConvenienceRequestOptions<Mode> & {
+        responseMode: Mode;
+    }): Promise<SdkResult<SdkResponseData<Mode>>>;
+    // (undocumented)
+    head(path: string, options?: SdkConvenienceRequestOptions): Promise<SdkResult<unknown>>;
     // (undocumented)
     options<T>(path: string, options: SdkValidatedOptionsRequestOptions<T>): Promise<SdkResult<T>>;
     // (undocumented)
@@ -1729,8 +3278,6 @@ export interface SdkServiceClient {
 // @public (undocumented)
 export interface SdkServiceConfig {
     // (undocumented)
-    allowedRedirectOrigins?: readonly string[];
-    // (undocumented)
     applicationAuth?: 'api-key' | 'none';
     // (undocumented)
     auth?: SdkUserAuthStrategy;
@@ -1751,7 +3298,7 @@ export class SdkTimeoutError extends InvestSdkError {
 }
 
 // @public (undocumented)
-export type SdkUserAuthStrategy = SdkCookieAuthStrategy | SdkBearerAuthStrategy | SdkNoUserAuthStrategy;
+export type SdkUserAuthStrategy = SdkCookieAuthStrategy | SdkBearerAuthStrategy | SdkAuthorizationAuthStrategy | SdkNoUserAuthStrategy;
 
 // @public (undocumented)
 export type SdkValidatedConvenienceRequestOptions<T> = Omit<SdkValidatedRequestInput<T>, 'method' | 'path' | 'body'>;
@@ -1769,7 +3316,7 @@ export type SdkValidatedRequestInput<T> = ([T] extends [never] ? unknown : [T] e
 
 // @public (undocumented)
 export class SdkValidationError extends SdkHttpError {
-    constructor(headers: Headers, context: SdkErrorContext);
+    constructor(headers: Headers, context: SdkHttpErrorContext);
 }
 
 // @public (undocumented)
@@ -1803,6 +3350,20 @@ export interface SponsoredCall {
     // (undocumented)
     value: bigint;
 }
+
+// @alpha
+export class SponsoredCallEvidenceError extends Error {
+    constructor(phase: SponsoredCallEvidencePhase, callId: string, cause: unknown);
+    // (undocumented)
+    readonly callId: string;
+    // (undocumented)
+    readonly phase: SponsoredCallEvidencePhase;
+    // (undocumented)
+    readonly retryable = true;
+}
+
+// @alpha (undocumented)
+export type SponsoredCallEvidencePhase = 'submission' | 'receipt';
 
 // @alpha (undocumented)
 export interface SponsoredCallExecutor {
@@ -1847,6 +3408,14 @@ export interface SponsoredCallProvider {
     }): Promise<unknown>;
 }
 
+// @alpha
+export interface SponsoredCallReceiptEvidence {
+    // (undocumented)
+    callId: string;
+    // (undocumented)
+    transactionHash: `0x${string}`;
+}
+
 // @alpha (undocumented)
 export interface SponsoredCallResult {
     // (undocumented)
@@ -1855,6 +3424,12 @@ export interface SponsoredCallResult {
     callId: string | null;
     // (undocumented)
     transactionHash: `0x${string}` | null;
+}
+
+// @alpha
+export interface SponsoredCallSubmissionEvidence {
+    // (undocumented)
+    callId: string;
 }
 
 // @alpha (undocumented)
@@ -1877,6 +3452,66 @@ export interface SubmitInvestmentSignatureInput extends InvestmentStepInput {
     signatureId: string;
     // (undocumented)
     userBrowser?: string;
+}
+
+// @public (undocumented)
+export interface SubscribeNotificationDeviceInput {
+    // (undocumented)
+    body: PushSubscriptionCreate;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public
+export interface TeamInvitationAcceptResponse {
+    // (undocumented)
+    readonly invitation: InvitationResponse;
+    // (undocumented)
+    readonly member: TeamInvitationMember;
+    // (undocumented)
+    readonly source: 'webdevelop-api' | (string & {});
+}
+
+// @public
+export interface TeamInvitationCreate {
+    // (undocumented)
+    readonly email: string;
+    // (undocumented)
+    readonly role: 'Owner' | 'Admin' | 'Ops' | 'Auditor';
+}
+
+// @public
+export interface TeamInvitationMember {
+    // (undocumented)
+    readonly email: string;
+    // (undocumented)
+    readonly firstName: string;
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly lastName: string;
+    // (undocumented)
+    readonly permissions: readonly string[];
+    // (undocumented)
+    readonly role: 'Owner' | 'Admin' | 'Ops' | 'Auditor' | (string & {});
+    // (undocumented)
+    readonly status: 'active' | (string & {});
+}
+
+// @public
+export interface TenPercentShareholder {
+    // (undocumented)
+    readonly shareholder_association?: boolean;
+    // (undocumented)
+    readonly ticker_symbol_list?: string;
+}
+
+// @public
+export interface TenPercentShareholderRequestInput {
+    // (undocumented)
+    readonly shareholder_association?: boolean;
+    // (undocumented)
+    readonly ticker_symbol_list?: string;
 }
 
 // @alpha (undocumented)
@@ -2066,55 +3701,197 @@ export interface TurnkeyVerificationTokenProof {
 }
 
 // @public (undocumented)
-export const validateAmountStep: SdkResponseValidator<AmountStep>;
+export interface UpdateProfileInput {
+    // (undocumented)
+    body: IndividualProfileUpdateRequest;
+    // (undocumented)
+    id: number;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+    // (undocumented)
+    type: ProfileType;
+}
 
 // @public (undocumented)
-export const validateConfirmedInvestmentListResponse: SdkResponseValidator<ConfirmedInvestmentListResponse>;
+export interface UpdateUserInput {
+    // (undocumented)
+    body: PartialUserUpdate;
+    // (undocumented)
+    request?: MutationResourceRequestOptions;
+}
+
+// @public
+export interface UserRetrieveResponse {
+    // (undocumented)
+    readonly created_at?: string;
+    // (undocumented)
+    readonly first_name?: string;
+    // (undocumented)
+    readonly id?: number;
+    // (undocumented)
+    readonly image_link_id: number | null;
+    // (undocumented)
+    readonly last_name?: string;
+    // (undocumented)
+    readonly phone?: string;
+    // (undocumented)
+    readonly profiles?: readonly Readonly<Record<string, unknown>>[];
+    // (undocumented)
+    readonly updated_at?: string;
+}
 
 // @public (undocumented)
-export const validateEmptyInvestmentResponse: SdkResponseValidator<Readonly<Record<string, never>>>;
+export interface UsersResource {
+    // (undocumented)
+    get(request?: ResourceRequestOptions): Promise<SdkResult<UserRetrieveResponse>>;
+    // (undocumented)
+    getUpdateSchema(request?: ResourceRequestOptions): Promise<SdkResult<JsonSchemaDocument>>;
+    // (undocumented)
+    update(input: UpdateUserInput): Promise<SdkResult<UserUpdate>>;
+}
+
+// @public
+export interface UserUpdate {
+    // (undocumented)
+    readonly first_name?: string;
+    // (undocumented)
+    readonly id?: number;
+    // (undocumented)
+    readonly image_link_id: number | null;
+    // (undocumented)
+    readonly last_name?: string;
+    // (undocumented)
+    readonly phone?: string;
+}
 
 // @public (undocumented)
-export const validateInvestmentDetail: SdkResponseValidator<InvestmentDetail>;
+export const validateAmountStep: SdkContractResponseValidator<AmountStep>;
 
 // @public (undocumented)
-export const validateInvestmentListResponse: SdkResponseValidator<InvestmentListResponse>;
+export const validateAnalyticsEventResponse: SdkContractResponseValidator<AnalyticsEventResponse>;
 
 // @public (undocumented)
-export const validateOfferDetailResponse: SdkResponseValidator<OfferDetailResponse>;
+export const validateAnalyticsLogResponse: SdkContractResponseValidator<AnalyticsLogResponse>;
 
 // @public (undocumented)
-export const validateOfferInvestmentProfileListResponse: SdkResponseValidator<OfferInvestmentProfileListResponse>;
+export const validateConfirmedInvestmentListResponse: SdkContractResponseValidator<ConfirmedInvestmentListResponse>;
 
 // @public (undocumented)
-export const validateOfferListResponse: SdkResponseValidator<OfferListResponse>;
+export const validateDistributionCreateResponse: SdkContractResponseValidator<ResponseCreateDistribution>;
 
 // @public (undocumented)
-export const validatePositionResponse: SdkResponseValidator<PositionResponse>;
+export const validateDistributionListResponse: SdkContractResponseValidator<ResponseGetDistributions>;
 
 // @public (undocumented)
-export const validateProfileWalletInfoResponse: SdkResponseValidator<ProfileWalletInfoResponse>;
+export const validateEmptyInvestmentResponse: SdkContractResponseValidator<Readonly<Record<string, never>>>;
 
 // @public (undocumented)
-export const validateRedemptionCommandResponse: SdkResponseValidator<RedemptionCommandResponse>;
+export const validateEsignDocumentResponse: SdkContractResponseValidator<EsignDocumentResponse>;
 
 // @public (undocumented)
-export const validateRedemptionListResponse: SdkResponseValidator<RedemptionListResponse>;
+export const validateFilerFile: SdkContractResponseValidator<FilerFile>;
 
 // @public (undocumented)
-export const validateRedemptionResponse: SdkResponseValidator<RedemptionResponse>;
+export const validateFilerSignedUrlResponse: SdkContractResponseValidator<FilerSignedUrlResponse>;
 
 // @public (undocumented)
-export const validateReviewStepResponse: SdkResponseValidator<ReviewStepResponse>;
+export const validateFundManagerAdminData: SdkContractResponseValidator<FundManagerAdminData>;
 
 // @public (undocumented)
-export const validateSignatureStep: SdkResponseValidator<SignatureStep>;
+export const validateFundManagerProfileListResponse: SdkContractResponseValidator<FundManagerProfileListResponse>;
 
 // @public (undocumented)
-export const validateWalletAuthorizationSessionsResponse: SdkResponseValidator<WalletAuthorizationSessionsResponse>;
+export const validateIncomingRequestResponse: SdkContractResponseValidator<IncomingRequestResponse>;
 
 // @public (undocumented)
-export const validateWalletTransactionsResponse: SdkResponseValidator<WalletTransactionsResponse>;
+export const validateIndividualProfileResponse: SdkContractResponseValidator<Individual>;
+
+// @public (undocumented)
+export const validateInvestmentDetail: SdkContractResponseValidator<InvestmentDetail>;
+
+// @public (undocumented)
+export const validateInvestmentListResponse: SdkContractResponseValidator<InvestmentListResponse>;
+
+// @public (undocumented)
+export const validateInvestorInvitationAcceptResponse: SdkContractResponseValidator<InvestorInvitationAcceptResponse>;
+
+// @public (undocumented)
+export const validateInvitationAcceptResponse: SdkContractResponseValidator<InvitationAcceptResponse>;
+
+// @public (undocumented)
+export const validateInvitationListResponse: SdkContractResponseValidator<InvitationListResponse>;
+
+// @public (undocumented)
+export const validateInvitationManagerContext: SdkContractResponseValidator<InvitationManagerContext>;
+
+// @public (undocumented)
+export const validateInvitationPreviewResponse: SdkContractResponseValidator<InvitationPreviewResponse>;
+
+// @public (undocumented)
+export const validateInvitationResponse: SdkContractResponseValidator<InvitationResponse>;
+
+// @public (undocumented)
+export const validateNotificationListResponse: SdkContractResponseValidator<readonly NotificationRecord[]>;
+
+// @public (undocumented)
+export const validateOfferDetailResponse: SdkContractResponseValidator<OfferDetailResponse>;
+
+// @public (undocumented)
+export const validateOfferInvestmentProfileListResponse: SdkContractResponseValidator<OfferInvestmentProfileListResponse>;
+
+// @public (undocumented)
+export const validateOfferListResponse: SdkContractResponseValidator<OfferListResponse>;
+
+// @public (undocumented)
+export const validatePositionResponse: SdkContractResponseValidator<PositionResponse>;
+
+// @public (undocumented)
+export const validateProfileCreateResponse: SdkContractResponseValidator<ObjectIdResponse>;
+
+// @public (undocumented)
+export const validateProfileJsonSchemaDocument: SdkContractResponseValidator<Readonly<Record<string, unknown>>>;
+
+// @public (undocumented)
+export const validateProfileRetrieveResponse: SdkContractResponseValidator<ProfileRetrieveResponse>;
+
+// @public (undocumented)
+export const validateProfileWalletInfoResponse: SdkContractResponseValidator<ProfileWalletInfoResponse>;
+
+// @public (undocumented)
+export const validatePushSubscriptionResponse: SdkContractResponseValidator<PushSubscriptionResponse>;
+
+// @public (undocumented)
+export const validateRedemptionCommandResponse: SdkContractResponseValidator<RedemptionCommandResponse>;
+
+// @public (undocumented)
+export const validateRedemptionListResponse: SdkContractResponseValidator<RedemptionListResponse>;
+
+// @public (undocumented)
+export const validateRedemptionResponse: SdkContractResponseValidator<RedemptionResponse>;
+
+// @public (undocumented)
+export const validateReviewStepResponse: SdkContractResponseValidator<ReviewStepResponse>;
+
+// @public (undocumented)
+export const validateSignatureStep: SdkContractResponseValidator<SignatureStep>;
+
+// @public (undocumented)
+export const validateTeamInvitationAcceptResponse: SdkContractResponseValidator<TeamInvitationAcceptResponse>;
+
+// @public (undocumented)
+export const validateUserJsonSchemaDocument: SdkContractResponseValidator<Readonly<Record<string, unknown>>>;
+
+// @public (undocumented)
+export const validateUserRetrieveResponse: SdkContractResponseValidator<UserRetrieveResponse>;
+
+// @public (undocumented)
+export const validateUserUpdateResponse: SdkContractResponseValidator<UserUpdate>;
+
+// @public (undocumented)
+export const validateWalletAuthorizationSessionsResponse: SdkContractResponseValidator<WalletAuthorizationSessionsResponse>;
+
+// @public (undocumented)
+export const validateWalletTransactionsResponse: SdkContractResponseValidator<WalletTransactionsResponse>;
 
 // @public
 export interface VaultControllerAggregate {
@@ -2139,7 +3916,7 @@ export interface VaultCustody {
     // (undocumented)
     readonly released_at?: string | null;
     // (undocumented)
-    readonly state: 'unfunded' | 'funding' | 'held' | 'refunding' | 'released' | 'refunded';
+    readonly state: 'unfunded' | 'funding' | 'held' | 'refunding' | 'released' | 'refunded' | (string & {});
     // (undocumented)
     readonly wallet_address: EvmAddress | null;
 }
@@ -2187,13 +3964,13 @@ export interface VaultDeposit {
     // (undocumented)
     readonly pending_assets_raw: RawUint256;
     // (undocumented)
-    readonly price_source?: 'offer_deck' | 'finalized_nav' | 'chain_forward_nav' | null;
+    readonly price_source?: 'offer_deck' | 'finalized_nav' | 'chain_forward_nav' | (string & {}) | null;
     // (undocumented)
     readonly price_usdc_raw?: RawUint256 | null;
     // (undocumented)
     readonly priced_at?: string | null;
     // (undocumented)
-    readonly protocol_state: 'unconfirmed' | 'pending' | 'claimable' | 'claimed';
+    readonly protocol_state: 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | (string & {});
     // (undocumented)
     readonly request_controller: VaultRequestController;
     // (undocumented)
@@ -2201,7 +3978,7 @@ export interface VaultDeposit {
     // (undocumented)
     readonly request_locked_at?: string | null;
     // (undocumented)
-    readonly request_origin: 'application' | 'chain';
+    readonly request_origin: 'application' | 'chain' | (string & {});
     // (undocumented)
     readonly share_amount_raw?: RawUint256 | null;
 }
@@ -2275,13 +4052,13 @@ export interface VaultRedemptionLifecycle {
     // (undocumented)
     readonly pending_shares_raw: RawUint256;
     // (undocumented)
-    readonly pricing_status: 'awaiting_dealing_nav' | 'priced';
+    readonly pricing_status: 'awaiting_dealing_nav' | 'priced' | (string & {});
     // (undocumented)
-    readonly protocol_state: 'unconfirmed' | 'pending' | 'claimable' | 'claimed';
+    readonly protocol_state: 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | (string & {});
     // (undocumented)
     readonly request_effect_id?: number | null;
     // (undocumented)
-    readonly request_origin: 'application' | 'chain';
+    readonly request_origin: 'application' | 'chain' | (string & {});
     // (undocumented)
     readonly share_amount_raw: RawUint256;
 }
@@ -2324,11 +4101,13 @@ export interface VaultToken {
 // @public
 export interface WalletAuthorizationSessionResponse {
     // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
     readonly asset_address?: string;
     // (undocumented)
     readonly authorization_option_id?: string;
     // (undocumented)
-    readonly authorization_status?: 'active';
+    readonly authorization_status?: 'active' | (string & {});
     // (undocumented)
     readonly chain?: string;
     // (undocumented)
@@ -2342,7 +4121,7 @@ export interface WalletAuthorizationSessionResponse {
     // (undocumented)
     readonly max_amount?: string;
     // (undocumented)
-    readonly operation_type?: 'withdrawal' | 'exchange' | 'delegation';
+    readonly operation_type?: 'withdrawal' | 'exchange' | 'delegation' | (string & {});
     // (undocumented)
     readonly remaining_amount?: string;
     // (undocumented)
@@ -2360,6 +4139,8 @@ export interface WalletAuthorizationSessionResponse {
 // @public
 export interface WalletAuthorizationSessionsResponse {
     // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
     readonly asset_address?: string;
     // (undocumented)
     readonly authorization_option_id?: string;
@@ -2370,11 +4151,11 @@ export interface WalletAuthorizationSessionsResponse {
     // (undocumented)
     readonly items?: readonly WalletAuthorizationSessionResponse[];
     // (undocumented)
-    readonly operation_type?: 'withdrawal' | 'exchange' | 'delegation';
+    readonly operation_type?: 'withdrawal' | 'exchange' | 'delegation' | (string & {});
     // (undocumented)
     readonly profile_id?: number;
     // (undocumented)
-    readonly status?: 'active';
+    readonly status?: 'active' | (string & {});
     // (undocumented)
     readonly to_asset_address?: string;
     // (undocumented)
@@ -2384,13 +4165,15 @@ export interface WalletAuthorizationSessionsResponse {
 // @public
 export interface WalletBalanceResponse {
     // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
     readonly amount?: string;
     // (undocumented)
     readonly amount_usd?: string;
     // (undocumented)
-    readonly balance_type?: 'tradable_crypto' | 'rwa_asset';
+    readonly balance_type?: 'tradable_crypto' | 'rwa_asset' | (string & {});
     // (undocumented)
-    readonly chain?: 'ethereum' | 'ethereum-sepolia' | 'polygon' | 'base';
+    readonly chain?: 'ethereum' | 'ethereum-sepolia' | 'polygon' | 'base' | (string & {});
     // (undocumented)
     readonly is_native?: boolean;
     // (undocumented)
@@ -2406,7 +4189,7 @@ export interface WalletBalanceResponse {
     // (undocumented)
     readonly token_price?: string;
     // (undocumented)
-    readonly token_standard?: 'native' | 'erc20';
+    readonly token_standard?: 'native' | 'erc20' | (string & {});
     // (undocumented)
     readonly token_symbol?: string;
     // (undocumented)
@@ -2416,6 +4199,8 @@ export interface WalletBalanceResponse {
 // @public
 export interface WalletBalanceSummaryResponse {
     // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
     readonly amount_usd?: string;
     // (undocumented)
     readonly token_count?: number;
@@ -2424,9 +4209,11 @@ export interface WalletBalanceSummaryResponse {
 // @public
 export interface WalletChainInfoResponse {
     // (undocumented)
-    readonly chain?: 'ethereum' | 'ethereum-sepolia' | 'polygon' | 'base';
+    readonly [key: string]: unknown;
     // (undocumented)
-    readonly chain_account_status?: 'pending' | 'verified' | 'failed' | 'suspended';
+    readonly chain?: 'ethereum' | 'ethereum-sepolia' | 'polygon' | 'base' | (string & {});
+    // (undocumented)
+    readonly chain_account_status?: 'pending' | 'verified' | 'failed' | 'suspended' | (string & {});
     // (undocumented)
     readonly wallet_address?: string;
 }
@@ -2434,13 +4221,17 @@ export interface WalletChainInfoResponse {
 // @public
 export interface WalletDepositInstructionResponse {
     // (undocumented)
+    readonly [key: string]: unknown;
+    // (undocumented)
     readonly address?: string;
     // (undocumented)
-    readonly chain?: 'ethereum' | 'ethereum-sepolia' | 'polygon' | 'base';
+    readonly chain?: 'ethereum' | 'ethereum-sepolia' | 'polygon' | 'base' | (string & {});
 }
 
 // @public
 export interface WalletTransactionHistoryItem {
+    // (undocumented)
+    readonly [key: string]: unknown;
     // (undocumented)
     readonly amount?: string;
     // (undocumented)
@@ -2448,7 +4239,7 @@ export interface WalletTransactionHistoryItem {
     // (undocumented)
     readonly asset?: string;
     // (undocumented)
-    readonly chain?: 'ethereum' | 'ethereum-sepolia' | 'polygon' | 'base';
+    readonly chain?: 'ethereum' | 'ethereum-sepolia' | 'polygon' | 'base' | (string & {});
     // (undocumented)
     readonly confirmed_at?: string;
     // (undocumented)
@@ -2458,9 +4249,9 @@ export interface WalletTransactionHistoryItem {
     // (undocumented)
     readonly operation_id?: string;
     // (undocumented)
-    readonly operation_status?: 'created' | 'submitted' | 'confirmed' | 'failed';
+    readonly operation_status?: 'created' | 'submitted' | 'confirmed' | 'failed' | (string & {});
     // (undocumented)
-    readonly operation_type?: 'deposit' | 'withdrawal' | 'investment';
+    readonly operation_type?: 'deposit' | 'withdrawal' | 'investment' | (string & {});
     // (undocumented)
     readonly price_usd?: string;
     // (undocumented)
@@ -2478,7 +4269,9 @@ export interface WalletTransactionHistoryItem {
 // @public
 export interface WalletTransactionsResponse {
     // (undocumented)
-    readonly chain?: 'all' | 'ethereum' | 'ethereum-sepolia' | 'polygon' | 'base';
+    readonly [key: string]: unknown;
+    // (undocumented)
+    readonly chain?: 'all' | 'ethereum' | 'ethereum-sepolia' | 'polygon' | 'base' | (string & {});
     // (undocumented)
     readonly items?: readonly WalletTransactionHistoryItem[];
     // (undocumented)
@@ -2486,7 +4279,7 @@ export interface WalletTransactionsResponse {
     // (undocumented)
     readonly profile_id?: number;
     // (undocumented)
-    readonly status?: 'all' | 'pending' | 'confirmed';
+    readonly status?: 'all' | 'pending' | 'confirmed' | (string & {});
 }
 
 // (No @packageDocumentation comment for this package)

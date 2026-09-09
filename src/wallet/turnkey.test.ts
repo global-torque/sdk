@@ -297,6 +297,37 @@ describe('createTurnkeyBrowserOtpClient', () => {
     );
   });
 
+  it('ignores backend recovery when the caller forces a fresh create or adopt path', async () => {
+    const serverSign = createServerSign();
+    serverSign.mock.mockResolvedValueOnce({
+      otpId: 'otp-id',
+      otpAttemptId: 'attempt_12345678901234567890',
+      otpEncryptionTargetBundle: 'encryption-target',
+      turnkeyRecovery: {
+        childOrganizationId: 'stale-child-org',
+        ownerUserId: 'stale-owner-user',
+        walletAddress: otherAddress,
+        walletId: 'stale-wallet',
+      },
+    });
+    const { client } = createClient({ serverSign });
+    const attempt = await client.startEmailOtp({
+      context: 'fund-a',
+      contact: 'fund@example.com',
+      recoveryOverride: null,
+    });
+
+    expect(attempt.recovery).toBeNull();
+    await client.verifyOtp(attempt, '123456');
+    await expect(client.establishSession({ attempt })).resolves.toMatchObject({
+      subOrganizationId: 'child-org',
+      walletAddress,
+    });
+    expect(serverSign.mock.mock.calls.some(([method]) => method === 'createSubOrganization')).toBe(
+      true,
+    );
+  });
+
   it('rejects authoritative address, active session, and constructed signer mismatches', async () => {
     const first = createClient();
     const firstAttempt = await first.client.startEmailOtp({
