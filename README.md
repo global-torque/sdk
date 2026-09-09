@@ -302,18 +302,16 @@ SHA-512 digest. It is a separate immutable GitHub release asset, outside the
 three-file `release/` directory checked by `release:verify`. The original
 tarball attestation is retained as well.
 
-An authorized token publisher may use that pre-generated bundle after verifying
-the immutable release assets, workflow/source identity and exact tarball checks:
+Use the verified publish workflow above for routine releases. npm CLI rejects
+combining `--provenance=false` and `--provenance-file`, and this package's
+`publishConfig.provenance` also requests CI signing. The local CLI command
+previously documented here therefore does not work; see
+[npm CLI issue #9879](https://github.com/npm/cli/issues/9879).
 
-```sh
-npm publish ./release/global-torque-sdk-0.2.0.tgz --access public --tag latest \
-  --provenance=false --provenance-file ./npm-provenance.json
-```
-
-`--provenance=false` selects the supplied signed provenance instead of requesting
-a new CI signature; it does not permit publication without provenance. npm
-verifies the supplied bundle's signature and package/digest subject. Never
-rebuild the tarball or use a bundle from a different version or source release.
+The initial `0.2.0` release used npm's `libnpmpublish` API with the independently
+verified external bundle, preserving the exact release tarball and registry
+provenance. Never rebuild an attested tarball, remove provenance to bypass the
+CLI conflict, or use a bundle from another version or source release.
 
 ## Support and security
 
