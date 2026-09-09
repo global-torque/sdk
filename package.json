@@ -47,13 +47,13 @@
     "@types/node": "^25.5.0",
     "@typescript-eslint/eslint-plugin": "^8.63.0",
     "@typescript-eslint/parser": "^8.63.0",
-    "@vitest/coverage-v8": "4.1.7",
+    "@vitest/coverage-v8": "4.1.11",
     "eslint": "9.39.4",
     "js-yaml": "^4.3.0",
     "prettier": "3.9.5",
     "publint": "0.3.21",
     "typescript": "^6.0.2",
-    "vitest": "4.1.7"
+    "vitest": "4.1.11"
   },
   "dependencies": {
     "@alchemy/wallet-apis": "^5.0.6",

@@ -6,6 +6,10 @@ patch releases preserve the supported API.
 
 ## 0.2.0 - 2026-09-09
 
+- Security: refresh the standalone dependency lock to patched `fast-uri`,
+  `js-yaml`, and `nanoid` releases, and update Vitest and its coverage tooling
+  to `4.1.11`. Production dependency ranges and the SDK API are unchanged.
+
 - Use ordinary semantic versions on `latest`; GitHub release creation no
   longer marks ordinary versions as prereleases. Legacy alpha artifacts retain
   their existing `next` channel and immutable verification controls.
