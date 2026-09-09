@@ -31,7 +31,7 @@ const normalizeBound = (value: number, name: string, maximum: number) => {
 };
 
 const throwIfAborted = (signal: AbortSignal | undefined) => {
-  if (signal?.aborted) throw new SdkAbortError({ details: { pagination: 'aborted' } });
+  if (signal?.aborted) throw new SdkAbortError({});
 };
 
 /** @public */

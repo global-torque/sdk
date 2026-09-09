@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { isPublishableVersion, publishTagForVersion } from './public-package-version-policy.mjs';
 
 const packageDirectory = path.resolve(import.meta.dirname, '..');
 const allowDirty = process.argv.includes('--allow-dirty');
@@ -50,14 +51,14 @@ const manifest = JSON.parse(fs.readFileSync(path.join(packageDirectory, 'package
 if (manifest.private !== false || manifest.license !== 'MIT') {
   throw new Error('Release artifacts require a public, MIT-licensed package manifest.');
 }
-if (!/^0\.1\.0-alpha\.(?:0|[1-9]\d*)$/u.test(manifest.version)) {
+if (!isPublishableVersion(manifest.version)) {
   throw new Error(`Package version is not publishable semver: ${String(manifest.version)}`);
 }
 if (
   manifest.repository?.url !== 'git+https://github.com/global-torque/sdk.git' ||
   manifest.publishConfig?.access !== 'public' ||
   manifest.publishConfig?.provenance !== true ||
-  manifest.publishConfig?.tag !== 'next'
+  manifest.publishConfig?.tag !== publishTagForVersion(manifest.version)
 ) {
   throw new Error('Release artifacts require the reviewed public repository and publish policy.');
 }

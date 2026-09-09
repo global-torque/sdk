@@ -5,11 +5,13 @@ import {
   type OfferDetailResponse,
   type OfferListResponse,
   type OfferListItemResponse,
+  type OfferLatestFinalizedNAV,
   type OfferOfferData,
   type OfferOnChainAssetToken,
   type OfferOnChainCustody,
   type OfferOnChainSummary,
   type OfferOnChainVault,
+  type OfferSubscriptionAvailability,
 } from './generated/contracts.js';
 import { compileResponseValidator } from './validation.js';
 
@@ -66,6 +68,20 @@ export const validateOfferListResponse = compileResponseValidator<OfferListRespo
   offerListResponseSchema,
   'OfferListResponse',
   (value) => value as OfferListResponse,
+  {
+    type: 'object',
+    required: ['data'],
+    properties: {
+      data: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['id', 'slug'],
+          properties: { id: { type: 'integer' }, slug: { type: 'string', minLength: 1 } },
+        },
+      },
+    },
+  },
 );
 
 /** @public */
@@ -73,6 +89,11 @@ export const validateOfferDetailResponse = compileResponseValidator<OfferDetailR
   offerDetailResponseSchema,
   'OfferDetailResponse',
   (value) => value as OfferDetailResponse,
+  {
+    type: 'object',
+    required: ['id', 'slug'],
+    properties: { id: { type: 'integer' }, slug: { type: 'string', minLength: 1 } },
+  },
 );
 
 /** Create typed public offer reads over a configured `offers` service client. @public */
@@ -102,9 +123,11 @@ export type {
   OfferDetailResponse,
   OfferListItemResponse,
   OfferListResponse,
+  OfferLatestFinalizedNAV,
   OfferOfferData,
   OfferOnChainAssetToken,
   OfferOnChainCustody,
   OfferOnChainSummary,
   OfferOnChainVault,
+  OfferSubscriptionAvailability,
 };

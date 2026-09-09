@@ -2,9 +2,9 @@
 
 ## Supported versions
 
-The newest published `0.1.0-alpha` version receives security fixes while the
-package remains in alpha. Older alpha versions are unsupported after a fixed
-version is available.
+The newest published version receives security fixes while the package is
+below `1.0`. Older versions, including legacy alpha releases, are unsupported
+after a fixed version is available.
 
 ## Reporting
 
@@ -21,7 +21,7 @@ within ten business days.
 
 ## Scope
 
-Reports about exact-origin credential isolation, diagnostic sanitization,
+Reports about exact-origin credential isolation, untrusted response-body isolation,
 EIP-7702 delegate validation, pending-call resumption, Turnkey authentication,
 or incorrect success gating are in scope. Provider availability and defects in
 an application's injected backend callbacks should be reported to their

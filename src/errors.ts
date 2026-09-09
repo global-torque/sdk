@@ -13,6 +13,22 @@ export interface SdkErrorContext {
 }
 
 /** @public */
+export interface SdkHttpErrorContext extends SdkErrorContext {
+  /**
+   * Untrusted application-protocol data parsed from the bounded HTTP error body.
+   * Validate before use. This value is not safe for direct logging or telemetry.
+   */
+  responseBody?: unknown;
+  bodyKind: SdkErrorBodyKind;
+}
+
+/** @public */
+export interface SdkDiagnosticErrorContext extends SdkErrorContext {
+  /** Bounded SDK-owned diagnostics. Never contains an HTTP response body. */
+  details?: unknown;
+}
+
+/** @public */
 export class InvestSdkError extends Error {
   readonly code: string;
   readonly service?: string;
@@ -49,20 +65,31 @@ export class SdkConfigurationError extends InvestSdkError {
 /** @public */
 export class SdkHttpError extends InvestSdkError {
   readonly headers: Headers;
+  /**
+   * Untrusted application-protocol data parsed from the bounded HTTP error body.
+   * Validate before use. This value is not safe for direct logging or telemetry.
+   */
+  readonly responseBody?: unknown;
+  declare readonly bodyKind: SdkErrorBodyKind;
 
-  constructor(code: string, message: string, headers: Headers, context: SdkErrorContext) {
+  constructor(code: string, message: string, headers: Headers, context: SdkHttpErrorContext) {
     super('SdkHttpError', code, message, context);
-    this.headers = new Headers();
-    for (const name of ['content-type', 'retry-after', 'x-request-id']) {
-      const value = headers.get(name);
-      if (value !== null) this.headers.set(name, value);
+    this.bodyKind = context.bodyKind;
+    if (context.responseBody !== undefined) {
+      Object.defineProperty(this, 'responseBody', {
+        configurable: false,
+        enumerable: false,
+        value: context.responseBody,
+        writable: false,
+      });
     }
+    this.headers = new Headers(headers);
   }
 }
 
 /** @public */
 export class SdkAuthenticationError extends SdkHttpError {
-  constructor(headers: Headers, context: SdkErrorContext) {
+  constructor(headers: Headers, context: SdkHttpErrorContext) {
     super(
       'SDK_AUTHENTICATION_FAILED',
       'Application or user authentication failed.',
@@ -75,7 +102,7 @@ export class SdkAuthenticationError extends SdkHttpError {
 
 /** @public */
 export class SdkAuthorizationError extends SdkHttpError {
-  constructor(headers: Headers, context: SdkErrorContext) {
+  constructor(headers: Headers, context: SdkHttpErrorContext) {
     super(
       'SDK_AUTHORIZATION_FAILED',
       'The application or user is not authorized.',
@@ -88,9 +115,22 @@ export class SdkAuthorizationError extends SdkHttpError {
 
 /** @public */
 export class SdkValidationError extends SdkHttpError {
-  constructor(headers: Headers, context: SdkErrorContext) {
+  constructor(headers: Headers, context: SdkHttpErrorContext) {
     super('SDK_VALIDATION_FAILED', 'The request was rejected by validation.', headers, context);
     this.name = 'SdkValidationError';
+  }
+}
+
+/** @public */
+export class SdkConflictError extends SdkHttpError {
+  constructor(headers: Headers, context: SdkHttpErrorContext) {
+    super(
+      'SDK_CONFLICT',
+      'The request conflicts with the current resource state.',
+      headers,
+      context,
+    );
+    this.name = 'SdkConflictError';
   }
 }
 
@@ -98,7 +138,7 @@ export class SdkValidationError extends SdkHttpError {
 export class SdkRateLimitError extends SdkHttpError {
   readonly retryAfterMs: number | null;
 
-  constructor(headers: Headers, retryAfterMs: number | null, context: SdkErrorContext) {
+  constructor(headers: Headers, retryAfterMs: number | null, context: SdkHttpErrorContext) {
     super('SDK_RATE_LIMITED', 'The request was rate limited.', headers, context);
     this.name = 'SdkRateLimitError';
     this.retryAfterMs = retryAfterMs;
@@ -107,7 +147,7 @@ export class SdkRateLimitError extends SdkHttpError {
 
 /** @public */
 export class SdkResponseParseError extends InvestSdkError {
-  constructor(context: SdkErrorContext) {
+  constructor(context: SdkDiagnosticErrorContext) {
     super(
       'SdkResponseParseError',
       'SDK_RESPONSE_PARSE_FAILED',
@@ -119,7 +159,7 @@ export class SdkResponseParseError extends InvestSdkError {
 
 /** @public */
 export class SdkResponseValidationError extends InvestSdkError {
-  constructor(context: SdkErrorContext) {
+  constructor(context: SdkDiagnosticErrorContext) {
     super(
       'SdkResponseValidationError',
       'SDK_RESPONSE_VALIDATION_FAILED',

@@ -1,4 +1,6 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
+import { createServer, type Server } from 'node:http';
+import { Readable } from 'node:stream';
 
 import { createInvestSdkTransport } from './client.js';
 import {
@@ -6,6 +8,7 @@ import {
   SdkAuthenticationError,
   SdkAuthorizationError,
   SdkConfigurationError,
+  SdkConflictError,
   SdkHttpError,
   SdkNetworkError,
   SdkOfflineError,
@@ -15,7 +18,6 @@ import {
   SdkTimeoutError,
   SdkValidationError,
 } from './errors.js';
-import { sanitizeErrorDetails } from './sanitize.js';
 import { assertSanitizedValue, createFetchScript, jsonResponse, requestUrl } from './testing.js';
 import type {
   InvestSdkTransportConfig,
@@ -39,6 +41,29 @@ const createConfig = (
   },
   ...overrides,
 });
+
+const listenOnLocalOrigin = (server: Server): Promise<string> =>
+  new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', reject);
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        reject(new Error('Expected an ephemeral TCP server address.'));
+        return;
+      }
+      resolve(`http://127.0.0.1:${String(address.port)}`);
+    });
+  });
+
+const closeServer = (server: Server): Promise<void> =>
+  new Promise((resolve, reject) => {
+    if (!server.listening) {
+      resolve();
+      return;
+    }
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
 
 describe('createInvestSdkTransport', () => {
   it('exports an offline-policy error for instance runtime adapters', () => {
@@ -129,14 +154,6 @@ describe('createInvestSdkTransport', () => {
         services: {
           torque: {
             baseUrl: 'https://api.example.test/',
-            allowedRedirectOrigins: ['http://identity.example.test'],
-          },
-        },
-      },
-      {
-        services: {
-          torque: {
-            baseUrl: 'https://api.example.test/',
             applicationAuth: 'api-key',
             redirectPolicy: 'follow',
           },
@@ -145,12 +162,91 @@ describe('createInvestSdkTransport', () => {
       { retry: { maxRetries: 6 } },
       { timeoutMs: 0 },
       { maxErrorBodyBytes: 0 },
+      { maxTextResponseBodyBytes: 0 },
     ];
 
     for (const overrides of invalidConfigurations) {
       expect(() => createInvestSdkTransport(createConfig(fetchImplementation, overrides))).toThrow(
         SdkConfigurationError,
       );
+    }
+
+    for (const invalidConfig of [
+      undefined,
+      { apiKey: 'key' },
+      {
+        apiKey: 'key',
+        fetch: null,
+        services: { torque: { baseUrl: 'https://api.example.test/' } },
+      },
+      { apiKey: 'key', services: null },
+      {
+        apiKey: 'key',
+        services: { torque: { baseUrl: 'https://api.example.test/', auth: null } },
+      },
+      {
+        apiKey: 'key',
+        services: {
+          torque: { baseUrl: 'https://api.example.test/', auth: { kind: 'unexpected' } },
+        },
+      },
+      {
+        apiKey: 'key',
+        services: { torque: { baseUrl: 'https://api.example.test/', auth: { kind: 'bearer' } } },
+      },
+      {
+        apiKey: 'key',
+        services: {
+          torque: { baseUrl: 'https://api.example.test/', auth: { kind: 'authorization' } },
+        },
+      },
+      { apiKey: 1, services: { torque: { baseUrl: 'https://api.example.test/' } } },
+      {
+        apiKey: 'key',
+        allowInsecureOrigins: {},
+        services: { torque: { baseUrl: 'https://api.example.test/' } },
+      },
+      {
+        apiKey: 'key',
+        hooks: { onRequest: 'invalid' },
+        services: { torque: { baseUrl: 'https://api.example.test/' } },
+      },
+      {
+        apiKey: 'key',
+        retry: { maxRetries: null },
+        services: { torque: { baseUrl: 'https://api.example.test/' } },
+      },
+      {
+        apiKey: 'key',
+        retry: { retryableStatuses: new Set([503]) },
+        services: { torque: { baseUrl: 'https://api.example.test/' } },
+      },
+      {
+        apiKey: 'key',
+        deduplicateSafeReads: 'yes',
+        services: { torque: { baseUrl: 'https://api.example.test/' } },
+      },
+      {
+        apiKey: 'key',
+        maxErrorBodyBytes: null,
+        services: { torque: { baseUrl: 'https://api.example.test/' } },
+      },
+      {
+        apiKey: 'key',
+        maxTextResponseBodyBytes: null,
+        services: { torque: { baseUrl: 'https://api.example.test/' } },
+      },
+      {
+        apiKey: 'key',
+        services: {
+          torque: {
+            baseUrl: 'https://api.example.test/',
+            auth: { kind: new String('bearer'), getToken: () => 'token' },
+          },
+        },
+      },
+    ]) {
+      expect(() => createInvestSdkTransport(invalidConfig as never)).toThrow(SdkConfigurationError);
     }
 
     const invalidRequestId = createInvestSdkTransport(
@@ -183,6 +279,12 @@ describe('createInvestSdkTransport', () => {
         query: { filter: {} as never },
       }),
     ).rejects.toMatchObject({ code: 'SDK_QUERY_VALUE_INVALID' });
+    await expect(client.post('/test', {}, { idempotencyKey: 123 as never })).rejects.toMatchObject({
+      code: 'SDK_IDEMPOTENCY_KEY_INVALID',
+    });
+    await expect(client.get('/test', { operationId: 123 as never })).rejects.toMatchObject({
+      code: 'SDK_DIAGNOSTIC_IDENTIFIER_INVALID',
+    });
     expect(fetchImplementation).not.toHaveBeenCalled();
   });
 
@@ -298,7 +400,9 @@ describe('createInvestSdkTransport', () => {
     const firstHook = vi.fn();
     const replacementHook = vi.fn();
     const getToken = vi.fn(() => 'first-token');
-    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ ok: true }));
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockImplementation(() => Promise.resolve(jsonResponse({ ok: true })));
     const mutableServices: Record<string, InvestSdkTransportConfig['services'][string]> = {
       torque: {
         baseUrl: 'https://api.example.test/v1/',
@@ -393,6 +497,90 @@ describe('createInvestSdkTransport', () => {
     expect(fetchImplementation.mock.calls[2]?.[1]?.credentials).toBe('omit');
     expect(new Headers(fetchImplementation.mock.calls[2]?.[1]?.headers).has('authorization')).toBe(
       false,
+    );
+  });
+
+  it('fails closed for malformed auth and identity callback results', async () => {
+    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ ok: true }));
+    const invalidResolvers = [
+      { kind: 'bearer' as const, getToken: () => '' },
+      { kind: 'bearer' as const, getToken: () => 7 as never },
+      { kind: 'authorization' as const, getAuthorization: () => '' },
+      { kind: 'authorization' as const, getAuthorization: () => ({}) as never },
+    ];
+    for (const auth of invalidResolvers) {
+      const client = createInvestSdkTransport(
+        createConfig(fetchImplementation, {
+          services: { torque: { baseUrl: 'https://api.example.test/', auth } },
+        }),
+      ).createServiceClient('torque');
+      await expect(client.get('/me')).rejects.toBeInstanceOf(SdkConfigurationError);
+    }
+
+    const invalidRequestId = createInvestSdkTransport(
+      createConfig(fetchImplementation, { createRequestId: () => 7 as never }),
+    ).createServiceClient('torque');
+    await expect(invalidRequestId.get('/me')).rejects.toMatchObject({
+      code: 'SDK_REQUEST_ID_INVALID',
+    });
+
+    const invalidScope = createInvestSdkTransport(
+      createConfig(fetchImplementation, {
+        deduplicateSafeReads: true,
+        services: {
+          torque: {
+            baseUrl: 'https://api.example.test/',
+            auth: { kind: 'cookie', deduplicationScope: () => 7 as never },
+          },
+        },
+      }),
+    ).createServiceClient('torque');
+    await expect(invalidScope.get('/me')).rejects.toMatchObject({
+      code: 'SDK_DEDUPLICATION_SCOPE_INVALID',
+    });
+    expect(fetchImplementation).not.toHaveBeenCalled();
+  });
+
+  it('creates keyless clients only for services without application or user credentials', () => {
+    const transport = createInvestSdkTransport(
+      createConfig(vi.fn<typeof fetch>(), {
+        services: {
+          keyed: { baseUrl: 'https://api.example.test/' },
+          keyless: {
+            baseUrl: 'https://downloads.example.test/',
+            applicationAuth: 'none',
+            auth: { kind: 'none', credentials: 'omit' },
+          },
+        },
+      }),
+    );
+    expect(() => transport.createKeylessServiceClient('keyed')).toThrow(
+      'not configured without application and user credentials',
+    );
+    expect(transport.createKeylessServiceClient('keyless')).toBeDefined();
+  });
+
+  it('applies typed custom Authorization without allowing generic header overrides', async () => {
+    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ ok: true }));
+    const client = createInvestSdkTransport(
+      createConfig(fetchImplementation, {
+        services: {
+          torque: {
+            baseUrl: 'https://api.example.test/v1/',
+            auth: {
+              kind: 'authorization',
+              getAuthorization: () => 'DPoP signed-credential',
+              credentials: 'omit',
+            },
+          },
+        },
+      }),
+    ).createServiceClient('torque');
+
+    await client.get('/me');
+
+    expect(new Headers(fetchImplementation.mock.calls[0]?.[1]?.headers).get('authorization')).toBe(
+      'DPoP signed-credential',
     );
   });
 
@@ -585,7 +773,7 @@ describe('createInvestSdkTransport', () => {
     expect(fetchImplementation).not.toHaveBeenCalled();
   });
 
-  it('makes OPTIONS schema discovery first-class and preserves existing query values', async () => {
+  it('makes opt-in OPTIONS schema discovery first-class and preserves existing query values', async () => {
     const fetchImplementation = vi
       .fn<typeof fetch>()
       .mockResolvedValue(jsonResponse({ fields: [] }));
@@ -594,6 +782,7 @@ describe('createInvestSdkTransport', () => {
     );
 
     const result = await client.options('/offers?locale=en', {
+      schema: true,
       query: { section: ['identity', 'bank'], empty: null, skip: undefined },
     });
 
@@ -607,7 +796,7 @@ describe('createInvestSdkTransport', () => {
     expect(result.data).toEqual({ fields: [] });
   });
 
-  it('can explicitly omit schema discovery and use the direct request surface', async () => {
+  it('uses raw OPTIONS by default without injecting a schema query', async () => {
     const fetchImplementation = vi
       .fn<typeof fetch>()
       .mockImplementation(() => Promise.resolve(new Response('schema disabled')));
@@ -615,7 +804,7 @@ describe('createInvestSdkTransport', () => {
       'torque',
     );
 
-    const result = await client.options('/forms', { schema: false, responseMode: 'text' });
+    const result = await client.options('/forms', { responseMode: 'text' });
 
     expect(requestUrl(fetchImplementation.mock.calls[0]?.[0])).toBe(
       'https://api.example.test/v1/forms',
@@ -651,6 +840,55 @@ describe('createInvestSdkTransport', () => {
     expect(reset).toMatchObject({ data: undefined, status: 205, requestId: 'request-1' });
     expect(fetchImplementation.mock.calls[0]?.[1]?.redirect).toBe('error');
     expect(fetchImplementation.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ name: 'Offer' }));
+  });
+
+  it('fails closed before following a credentialed cross-origin HTTP redirect', async () => {
+    const destinationRequests: { apiKey?: string }[] = [];
+    const redirectRequests: { apiKey?: string }[] = [];
+    const destinationServer = createServer((request, response) => {
+      destinationRequests.push({
+        ...(typeof request.headers['x-api-key'] === 'string'
+          ? { apiKey: request.headers['x-api-key'] }
+          : {}),
+      });
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ reached: true }));
+    });
+    const redirectServer = createServer((request, response) => {
+      redirectRequests.push({
+        ...(typeof request.headers['x-api-key'] === 'string'
+          ? { apiKey: request.headers['x-api-key'] }
+          : {}),
+      });
+      response.writeHead(302, { location: `${destinationOrigin}/oauth/provider` });
+      response.end();
+    });
+    let destinationOrigin = '';
+
+    try {
+      destinationOrigin = await listenOnLocalOrigin(destinationServer);
+      const redirectOrigin = await listenOnLocalOrigin(redirectServer);
+      const client = createInvestSdkTransport(
+        createConfig(globalThis.fetch, {
+          allowInsecureOrigins: [redirectOrigin, destinationOrigin],
+          retry: { maxRetries: 0 },
+          services: {
+            torque: {
+              baseUrl: `${redirectOrigin}/`,
+              applicationAuth: 'api-key',
+              auth: { kind: 'cookie', credentials: 'include' },
+            },
+          },
+        }),
+      ).createServiceClient('torque');
+
+      await expect(client.get('/redirect')).rejects.toBeInstanceOf(SdkNetworkError);
+      expect(redirectRequests).toEqual([{ apiKey: 'public_test_key' }]);
+      expect(destinationRequests).toEqual([]);
+    } finally {
+      await closeServer(redirectServer);
+      await closeServer(destinationServer);
+    }
   });
 
   it.each([204, 205])(
@@ -703,6 +941,76 @@ describe('createInvestSdkTransport', () => {
     }
   });
 
+  it('preserves cross-realm branded bodies and enables Node streaming uploads', async () => {
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockImplementation(() => Promise.resolve(jsonResponse({ ok: true })));
+    const client = createInvestSdkTransport(createConfig(fetchImplementation)).createServiceClient(
+      'torque',
+    );
+    const crossRealmBlob = { [Symbol.toStringTag]: 'Blob', size: 3, type: 'text/plain' };
+    const crossRealmFile = { [Symbol.toStringTag]: 'File', name: 'offer.pdf', size: 3 };
+    const stream = Readable.from(['one', 'two']);
+
+    await client.post('/blob', crossRealmBlob);
+    await client.post('/file', crossRealmFile);
+    await client.post('/stream', stream);
+
+    expect(fetchImplementation.mock.calls[0]?.[1]?.body).toBe(crossRealmBlob);
+    expect(new Headers(fetchImplementation.mock.calls[0]?.[1]?.headers).has('content-type')).toBe(
+      false,
+    );
+    expect(fetchImplementation.mock.calls[1]?.[1]?.body).toBe(crossRealmFile);
+    expect(fetchImplementation.mock.calls[2]?.[1]?.body).toBe(stream);
+    expect(
+      (fetchImplementation.mock.calls[2]?.[1] as RequestInit & { duplex?: string }).duplex,
+    ).toBe('half');
+  });
+
+  it('supports body-free HEAD as a safe read', async () => {
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(null, { headers: { 'content-type': 'application/json' } }));
+    const client = createInvestSdkTransport(createConfig(fetchImplementation)).createServiceClient(
+      'torque',
+    );
+
+    await expect(client.head('/health')).resolves.toMatchObject({ data: undefined, status: 200 });
+
+    expect(fetchImplementation.mock.calls[0]?.[1]?.method).toBe('HEAD');
+    await expect(client.head('/health', { body: 'forbidden' } as never)).rejects.toMatchObject({
+      code: 'SDK_READ_BODY_REJECTED',
+    });
+  });
+
+  it('bounds successful JSON and text without imposing the text limit on binary modes', async () => {
+    const payload = '0123456789';
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(payload, { headers: { 'content-type': 'text/plain' } }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ payload }), {
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(new Response(payload));
+    const client = createInvestSdkTransport(
+      createConfig(fetchImplementation, { maxTextResponseBodyBytes: 5 }),
+    ).createServiceClient('torque');
+
+    await expect(client.get('/text', { responseMode: 'text' })).rejects.toMatchObject({
+      code: 'SDK_RESPONSE_PARSE_FAILED',
+      details: { parseFailure: 'response-body-too-large' },
+    });
+    await expect(client.get('/json')).rejects.toMatchObject({
+      code: 'SDK_RESPONSE_PARSE_FAILED',
+      details: { parseFailure: 'response-body-too-large' },
+    });
+    await expect(client.get('/binary', { responseMode: 'arrayBuffer' })).resolves.toMatchObject({
+      status: 200,
+    });
+  });
+
   it('[transport:methods] [transport:response-modes] supports text, blob, array-buffer, PUT, and PATCH transport shapes', async () => {
     const fetchImplementation = vi.fn<typeof fetch>().mockImplementation((_url, init) => {
       const method = init?.method;
@@ -734,7 +1042,7 @@ describe('createInvestSdkTransport', () => {
     [401, SdkAuthenticationError, 'SDK_AUTHENTICATION_FAILED'],
     [403, SdkAuthorizationError, 'SDK_AUTHORIZATION_FAILED'],
     [404, SdkHttpError, 'SDK_HTTP_FAILED'],
-    [409, SdkValidationError, 'SDK_VALIDATION_FAILED'],
+    [409, SdkConflictError, 'SDK_CONFLICT'],
     [422, SdkValidationError, 'SDK_VALIDATION_FAILED'],
     [500, SdkHttpError, 'SDK_HTTP_FAILED'],
   ])('maps HTTP %i to a stable typed error', async (status, ErrorType, code) => {
@@ -759,12 +1067,64 @@ describe('createInvestSdkTransport', () => {
 
     expect(error).toBeInstanceOf(ErrorType);
     expect(error).toMatchObject({ code, status, route: 'forms.submit', attempts: 1 });
-    assertSanitizedValue(error, ['must-not-leak', '<script>', 'request-secret']);
-    expect((error as SdkHttpError).details).toMatchObject({
+    expect((error as SdkHttpError).responseBody).toEqual({
       __error__: 'Rejected',
       email: ['Invalid'],
+      password: 'must-not-leak',
+      nested: { csrf_token: 'must-not-leak', message: '<script>alert(1)</script>Bad' },
     });
-    expect((error as SdkHttpError).headers.has('x-private-token')).toBe(false);
+    assertSanitizedValue(error, ['must-not-leak', '<script>', 'request-secret']);
+    expect((error as SdkHttpError).headers.get('x-private-token')).toBe('hidden');
+  });
+
+  it('preserves bounded JSON protocol bodies without rewriting redirect or unknown fields', async () => {
+    const responseBody = {
+      error: { id: 'browser_location_change_required' },
+      redirect_browser_to:
+        'https://accounts.example.test/oauth?flow=flow-secret&provider=google&token=token-secret',
+      password: 'protocol-owned-value',
+      ui: {
+        nodes: [{ attributes: { name: 'provider', value: 'google' } }],
+      },
+      unknown_nested: { keep: ['all', 'fields'] },
+    };
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse(responseBody, { status: 422 }));
+    const client = createInvestSdkTransport(createConfig(fetchImplementation)).createServiceClient(
+      'torque',
+    );
+
+    const error = await client.post('/self-service/login', {}).catch((value: unknown) => value);
+
+    expect(error).toBeInstanceOf(SdkValidationError);
+    expect((error as SdkHttpError).responseBody).toEqual(responseBody);
+    expect((error as SdkHttpError).bodyKind).toBe('json');
+    expect((error as SdkHttpError).details).toBeUndefined();
+    expect(JSON.stringify(error)).not.toContain('flow-secret');
+  });
+
+  it.each([
+    ['null', null],
+    ['number', 42],
+    ['string', 'protocol-message'],
+    ['array', ['one', { two: true }]],
+  ])('preserves a bounded JSON %s error body', async (_label, responseBody) => {
+    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify(responseBody), {
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const client = createInvestSdkTransport(createConfig(fetchImplementation)).createServiceClient(
+      'torque',
+    );
+
+    const error = await client.get('/typed-error').catch((value: unknown) => value);
+
+    expect(error).toBeInstanceOf(SdkValidationError);
+    expect((error as SdkHttpError).responseBody).toEqual(responseBody);
+    expect((error as SdkHttpError).bodyKind).toBe('json');
   });
 
   it('parses Retry-After seconds, HTTP dates, and malformed values', async () => {
@@ -816,11 +1176,12 @@ describe('createInvestSdkTransport', () => {
     await expect(client.get('/failure')).rejects.toMatchObject({
       code: 'SDK_HTTP_FAILED',
       status: 500,
-      details: { parseFailure: 'malformed-json' },
+      bodyKind: 'malformed',
+      responseBody: undefined,
     });
   });
 
-  it('bounds non-JSON and empty HTTP error details without losing status', async () => {
+  it('preserves bounded non-JSON HTTP bodies and identifies empty bodies', async () => {
     const fetchImplementation = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
@@ -837,9 +1198,17 @@ describe('createInvestSdkTransport', () => {
     const htmlError = await client.get('/html').catch((error: unknown) => error);
     const emptyError = await client.get('/empty').catch((error: unknown) => error);
 
-    expect(htmlError).toMatchObject({ status: 502 });
+    expect(htmlError).toMatchObject({
+      status: 502,
+      bodyKind: 'text',
+      responseBody: '<h1>Failure</h1><script>steal()</script>',
+    });
     expect(JSON.stringify(htmlError)).not.toContain('<script>');
-    expect(emptyError).toMatchObject({ status: 404, details: undefined });
+    expect(emptyError).toMatchObject({
+      status: 404,
+      bodyKind: 'empty',
+      responseBody: undefined,
+    });
   });
 
   it('parses bounded JSON-shaped HTTP errors when the backend mislabels the media type', async () => {
@@ -858,7 +1227,7 @@ describe('createInvestSdkTransport', () => {
     await expect(client.post('/auth/comment', {})).rejects.toMatchObject({
       code: 'SDK_AUTHENTICATION_FAILED',
       status: 401,
-      details: {
+      responseBody: {
         error: {
           code: 401,
           message: 'Access credentials are invalid',
@@ -884,7 +1253,8 @@ describe('createInvestSdkTransport', () => {
     expect(error).toMatchObject({
       code: 'SDK_VALIDATION_FAILED',
       status: 400,
-      details: { bodyTruncated: true },
+      bodyKind: 'truncated',
+      responseBody: undefined,
     });
     expect(JSON.stringify(error)).not.toContain(secret);
   });
@@ -1214,21 +1584,88 @@ describe('createInvestSdkTransport', () => {
       }),
     );
 
-    await expect(
-      transport
-        .createServiceClient('torque')
-        .post(
-          '/submit?token=query-secret',
-          { password: 'body-secret' },
-          { operationId: 'forms.submit' },
-        ),
-    ).resolves.toMatchObject({ data: { ok: true } });
+    const result = await transport
+      .createServiceClient('torque')
+      .post(
+        '/submit?token=query-secret',
+        { password: 'body-secret' },
+        { operationId: 'forms.submit' },
+      );
+
+    expect(result).toMatchObject({ data: { ok: true } });
+
+    expect(result.metadata).toEqual({
+      attempts: 1,
+      requestId: 'request-1',
+      source: 'network',
+    });
+    expect(Object.isFrozen(result.metadata)).toBe(true);
 
     assertSanitizedValue(events, ['secret-key', 'query-secret', 'body-secret']);
     expect(events).toEqual([
       expect.objectContaining({ phase: 'request', route: 'forms.submit' }),
-      expect.objectContaining({ phase: 'response', route: 'forms.submit', status: 200 }),
+      expect.objectContaining({
+        phase: 'response',
+        route: 'forms.submit',
+        source: 'network',
+        status: 200,
+      }),
     ]);
+  });
+
+  it('exposes injected offline provenance and the final retry attempt without storage policy', async () => {
+    const script = createFetchScript([
+      new TypeError('network unavailable'),
+      jsonResponse({ cached: true }),
+    ]);
+    const onResponse = vi.fn();
+    const transport = createInvestSdkTransport(
+      createConfig(script.fetch, {
+        retry: { maxRetries: 1 },
+        resolveResponseSource: () => 'offline-cache',
+        hooks: { onResponse },
+      }),
+    );
+
+    const result = await transport.createServiceClient('torque').get('/cached');
+
+    expect(result.metadata).toEqual({
+      attempts: 2,
+      requestId: 'request-1',
+      source: 'offline-cache',
+    });
+    expect(onResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attempt: 2,
+        phase: 'response',
+        source: 'offline-cache',
+      }),
+    );
+  });
+
+  it('fails closed when an injected response-source classifier fails or returns invalid data', async () => {
+    const response = () => jsonResponse({ ok: true });
+    const throwing = createInvestSdkTransport(
+      createConfig(vi.fn<typeof fetch>().mockResolvedValue(response()), {
+        resolveResponseSource: () => {
+          throw new Error('private adapter failure');
+        },
+      }),
+    ).createServiceClient('torque');
+    const invalid = createInvestSdkTransport(
+      createConfig(vi.fn<typeof fetch>().mockResolvedValue(response()), {
+        resolveResponseSource: () => 'browser-cache' as 'network',
+      }),
+    ).createServiceClient('torque');
+
+    await expect(throwing.get('/source')).rejects.toMatchObject({
+      code: 'SDK_RESPONSE_SOURCE_RESOLUTION_FAILED',
+      name: 'SdkConfigurationError',
+    });
+    await expect(invalid.get('/source')).rejects.toMatchObject({
+      code: 'SDK_RESPONSE_SOURCE_INVALID',
+      name: 'SdkConfigurationError',
+    });
   });
 
   it('never serializes request paths or query values into diagnostics and errors', async () => {
@@ -1592,158 +2029,5 @@ describe('canonical request type contract', () => {
 
     expect(forbiddenFields.every((field) => !(field in request))).toBe(true);
     expect((invalidRequest as unknown as { redirect: string }).redirect).toBe('follow');
-  });
-});
-
-describe('sanitizeErrorDetails', () => {
-  it('recursively removes secret fields, executable markup, and oversized material', () => {
-    const sanitized = sanitizeErrorDetails({
-      token: 'secret',
-      safe: 'value',
-      password: ['Password must contain a number.'],
-      attributes: { name: 'totp_code', value: '<script>secret()</script>' },
-      long: 'a'.repeat(600),
-    });
-
-    expect(sanitized).toMatchObject({
-      safe: ['value'],
-      password: ['Password must contain a number.'],
-      attributes: { name: 'totp_code' },
-    });
-    expect(JSON.stringify(sanitized)).not.toContain('secret()');
-    expect(JSON.stringify(sanitized)).not.toContain('csrf_token');
-    expect(JSON.stringify(sanitized)).not.toContain('"token"');
-    expect((sanitized as { long: string }).long.length).toBeLessThan(600);
-  });
-
-  it('preserves bounded scalar messages for the two reviewed password-validation fields', () => {
-    expect(
-      sanitizeErrorDetails({
-        create_password: 'Password is too weak',
-        repeat_password: 'Passwords do not match',
-        password: 'actual-submitted-secret',
-      }),
-    ).toEqual({
-      create_password: 'Password is too weak',
-      repeat_password: 'Passwords do not match',
-    });
-  });
-
-  it('handles primitives, unsupported values, unknown objects, and unsafe attributes', () => {
-    expect(sanitizeErrorDetails(null)).toBeNull();
-    expect(sanitizeErrorDetails(true)).toBe(true);
-    expect(sanitizeErrorDetails(() => undefined)).toBeUndefined();
-    expect(sanitizeErrorDetails({ attributes: { value: 'secret' } })).toEqual({ attributes: {} });
-
-    expect(sanitizeErrorDetails({ nested: { arbitrary: 'value' } })).toEqual({});
-  });
-
-  it('redacts embedded credentials and strips query secrets from redirect values', () => {
-    const sanitized = sanitizeErrorDetails(
-      {
-        message:
-          'Authorization: Bearer auth-secret; X-API-Key=app-secret, Cookie: sid=cookie-secret',
-        redirect_to: 'https://identity.example.test/login?token=query-secret#fragment',
-        return_url: '/continue?csrf_token=csrf-secret',
-      },
-      { allowedRedirectOrigins: new Set(['https://identity.example.test']) },
-    );
-    const serialized = JSON.stringify(sanitized);
-
-    expect(serialized).not.toContain('auth-secret');
-    expect(serialized).not.toContain('app-secret');
-    expect(serialized).not.toContain('cookie-secret');
-    expect(serialized).not.toContain('query-secret');
-    expect(serialized).not.toContain('csrf-secret');
-    expect(sanitized).toMatchObject({
-      redirect_to: 'https://identity.example.test/login',
-      return_url: '/continue',
-    });
-  });
-
-  it('retains only reviewed Ory navigation query fields on approved redirects', () => {
-    const sanitized = sanitizeErrorDetails(
-      {
-        redirect_browser_to:
-          'https://identity.example.test/settings?aal=aal2&flow=123e4567-e89b-42d3-a456-426614174000&refresh=true&token=secret#fragment',
-      },
-      { allowedRedirectOrigins: new Set(['https://identity.example.test']) },
-    );
-
-    expect(sanitized).toEqual({
-      redirect_browser_to:
-        'https://identity.example.test/settings?aal=aal2&flow=123e4567-e89b-42d3-a456-426614174000&refresh=true',
-    });
-  });
-
-  it('rejects unapproved absolute redirects and redacts unlabeled JWT-like tokens', () => {
-    const sanitized = sanitizeErrorDetails(
-      {
-        message: 'opaque eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.signaturevalue leaked',
-        redirect_browser_to: 'https://evil.example/phish?token=secret',
-      },
-      { allowedRedirectOrigins: new Set(['https://identity.example.test']) },
-    );
-    const serialized = JSON.stringify(sanitized);
-
-    expect(serialized).not.toContain('eyJhbGci');
-    expect(serialized).not.toContain('evil.example');
-    expect(sanitized).toEqual({ message: 'opaque [redacted token] leaked' });
-  });
-
-  it('preserves URL-named fields as validation messages rather than redirects', () => {
-    expect(
-      sanitizeErrorDetails({
-        website_url: 'Enter a valid URL.',
-        incorporation_location: ['Select a jurisdiction.'],
-      }),
-    ).toEqual({
-      website_url: ['Enter a valid URL.'],
-      incorporation_location: ['Select a jurisdiction.'],
-    });
-  });
-
-  it('allowlists Ory error identities, messages, and safe node discriminators', () => {
-    const sanitized = sanitizeErrorDetails({
-      error: {
-        id: 'session_aal2_required',
-        code: 401,
-        status: 'Unauthorized',
-        message: 'Session needs AAL2',
-        debug: 'must-not-survive',
-      },
-      ui: {
-        messages: [{ id: 4000006, type: 'error', text: 'Invalid credentials', context: 'private' }],
-        nodes: [
-          {
-            attributes: { name: 'totp_code', value: '123456', type: 'text' },
-            messages: [{ id: 1, type: 'error', text: 'Invalid code' }],
-            meta: 'private',
-          },
-        ],
-        action: 'https://identity.example.test/submit?csrf_token=secret',
-      },
-      unexpected: { nested: 'private' },
-    });
-
-    expect(sanitized).toEqual({
-      error: {
-        id: 'session_aal2_required',
-        code: 401,
-        status: 'Unauthorized',
-        message: 'Session needs AAL2',
-      },
-      ui: {
-        messages: [{ id: 4000006, type: 'error', text: 'Invalid credentials' }],
-        nodes: [
-          {
-            attributes: { name: 'totp_code' },
-            messages: [{ id: 1, type: 'error', text: 'Invalid code' }],
-          },
-        ],
-      },
-    });
-    expect(JSON.stringify(sanitized)).not.toContain('123456');
-    expect(JSON.stringify(sanitized)).not.toContain('csrf_token');
   });
 });

@@ -1,6 +1,6 @@
 import type {
   SdkConvenienceRequestOptions,
-  SdkResponseValidator,
+  SdkContractResponseValidator,
   SdkResult,
   SdkServiceClient,
 } from '../types.js';
@@ -205,9 +205,16 @@ const normalizeAggregateWalletInfoResponse = (value: unknown): unknown => {
 };
 
 /** @public */
-export const validateProfileWalletInfoResponse: SdkResponseValidator<ProfileWalletInfoResponse> = (
-  value,
-) => validatePinnedProfileWalletInfoResponse(normalizeAggregateWalletInfoResponse(value));
+export const validateProfileWalletInfoResponse = ((value: unknown) =>
+  validatePinnedProfileWalletInfoResponse(
+    normalizeAggregateWalletInfoResponse(value),
+  )) as SdkContractResponseValidator<ProfileWalletInfoResponse>;
+Object.defineProperty(validateProfileWalletInfoResponse, 'exact', {
+  configurable: false,
+  enumerable: false,
+  value: validatePinnedProfileWalletInfoResponse.exact,
+  writable: false,
+});
 
 /** @public */
 export const validateWalletTransactionsResponse =

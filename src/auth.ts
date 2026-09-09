@@ -1,8 +1,14 @@
 import type {
+  SdkAuthorizationAuthStrategy,
   SdkBearerAuthStrategy,
   SdkCookieAuthStrategy,
   SdkNoUserAuthStrategy,
 } from './types.js';
+
+/** @public */
+export const authorizationAuth = (
+  options: Omit<SdkAuthorizationAuthStrategy, 'kind'>,
+): Readonly<SdkAuthorizationAuthStrategy> => Object.freeze({ ...options, kind: 'authorization' });
 
 /** @public */
 export const cookieAuth = (

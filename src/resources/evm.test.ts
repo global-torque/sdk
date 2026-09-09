@@ -95,8 +95,8 @@ describe('EVM resource', () => {
 
   it.each([
     { chain_account_status: 'ready' },
-    { chain_account_status: '', deposit_instructions: { chain: 'solana', address: '' } },
-  ])('still rejects invalid non-empty aggregate enum values: %j', async (invalidFields) => {
+    { deposit_instructions: { chain: 'solana', address: '' } },
+  ])('preserves unknown non-empty aggregate enum values: %j', async (unknownFields) => {
     const context = setup([
       jsonResponse({
         profile_id: 1292,
@@ -105,19 +105,13 @@ describe('EVM resource', () => {
         wallet_address: '',
         balances: [],
         chains: [],
-        ...invalidFields,
+        ...unknownFields,
       }),
     ]);
 
-    const error = await context.resource
-      .getWalletInfo({ profileId: 1292, chain: 'all' })
-      .catch((reason: unknown) => reason);
+    const result = await context.resource.getWalletInfo({ profileId: 1292, chain: 'all' });
 
-    expect(error).toMatchObject({
-      name: 'SdkResponseValidationError',
-      code: 'SDK_RESPONSE_VALIDATION_FAILED',
-      route: 'getWalletInfo',
-    });
+    expect(result.data).toMatchObject(unknownFields);
     context.transport.dispose();
   });
 
@@ -215,15 +209,12 @@ describe('EVM resource', () => {
     context.transport.dispose();
   });
 
-  it('rejects malformed authorization sessions and invalid filters', async () => {
-    const malformed = setup([jsonResponse({ profile_id: 1150, status: 'expired', items: [] })]);
-    await expect(
-      malformed.resource.getWalletAuthorizationSessions({ profileId: 1150 }),
-    ).rejects.toMatchObject({
-      name: 'SdkResponseValidationError',
-      route: 'getWalletAuthorizationSessions',
-    });
-    malformed.transport.dispose();
+  it('preserves new response statuses while rejecting unsupported request filters', async () => {
+    const compatible = setup([jsonResponse({ profile_id: 1150, status: 'expired', items: [] })]);
+    expect(
+      (await compatible.resource.getWalletAuthorizationSessions({ profileId: 1150 })).data.status,
+    ).toBe('expired');
+    compatible.transport.dispose();
 
     const invalid = setup([]);
     expect(() =>

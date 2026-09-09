@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Existing immutable GitHub prerelease tag, for example v0.1.0-alpha.2
+        description: Existing immutable GitHub release tag, for example v0.2.0
         required: true
         type: string
       bootstrap:
@@ -12,9 +12,6 @@ on:
         required: true
         default: false
         type: boolean
-  push:
-    tags:
-      - 'publish-v*'
 
 permissions:
   contents: read
@@ -24,22 +21,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve release tag
-        env:
-          DISPATCH_TAG: ${{ inputs.release_tag }}
-        shell: bash
-        run: |
-          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            release_tag="${GITHUB_REF_NAME#publish-}"
-            release_tag="${release_tag%%-attempt*}"
-          else
-            release_tag="${DISPATCH_TAG}"
-          fi
-          [[ "${release_tag}" == v* ]]
-          echo "RELEASE_TAG=${release_tag}" >> "${GITHUB_ENV}"
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ inputs.release_tag }}
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
@@ -48,47 +32,49 @@ jobs:
       - name: Download reviewed release files
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           mkdir release
-          gh release download "${RELEASE_TAG}" --dir release
+          gh release download "${RELEASE_TAG}" --dir release \
+            --pattern '*.tgz' --pattern '*.tgz.manifest.json' --pattern '*.tgz.sha512'
+          gh release download "${RELEASE_TAG}" --dir . --pattern npm-provenance.json
       - name: Verify immutable release asset and attestation
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         shell: bash
         run: |
           archive=$(find release -maxdepth 1 -name '*.tgz' -print -quit)
           test -n "${archive}"
           gh release verify "${RELEASE_TAG}"
           gh release verify-asset "${RELEASE_TAG}" "${archive}"
+          gh release verify-asset "${RELEASE_TAG}" npm-provenance.json
           gh attestation verify "${archive}" --repo "${GITHUB_REPOSITORY}"
       - name: Verify exact release bundle
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
         shell: bash
         run: |
           node scripts/verify-release-bundle.mjs \
             --directory release \
             --tag "${RELEASE_TAG}"
       - name: Bootstrap the first publication with a temporary token
-        if: ${{ github.event_name == 'push' || inputs.bootstrap }}
+        if: ${{ inputs.bootstrap }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
         run: |
           test -n "${NODE_AUTH_TOKEN}"
-          npm publish ./release/*.tgz --access public --provenance --tag next
+          publish_tag=$(node -p "require('./package.json').publishConfig.tag")
+          npm publish release/*.tgz --access public --provenance --tag "${publish_tag}"
       - name: Publish exact tarball with trusted publishing
-        if: ${{ github.event_name != 'push' && !inputs.bootstrap }}
-        run: npm publish ./release/*.tgz --access public --tag next
+        if: ${{ !inputs.bootstrap }}
+        run: |
+          publish_tag=$(node -p "require('./package.json').publishConfig.tag")
+          npm publish release/*.tgz --access public --provenance --tag "${publish_tag}"
       - name: Verify registry bytes
         shell: bash
         run: |
           package_version=$(node -p "require('./package.json').version")
           mkdir registry
-          for attempt in {1..12}; do
-            if npm pack "@global-torque/sdk@${package_version}" --pack-destination registry; then
-              break
-            fi
-            if [[ "${attempt}" == 12 ]]; then
-              exit 1
-            fi
-            sleep 10
-          done
+          npm pack "@global-torque/sdk@${package_version}" --pack-destination registry
           cmp release/*.tgz registry/*.tgz

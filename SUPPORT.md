@@ -1,8 +1,8 @@
 # Support
 
-`@global-torque/sdk` is an alpha package. Public APIs may change before
-`1.0`; breaking changes are recorded in `CHANGELOG.md` and released under a new
-prerelease version.
+`@global-torque/sdk` uses ordinary semantic versions. Before `1.0`, breaking
+changes require a new minor version and are recorded in `CHANGELOG.md`; patch
+releases preserve the supported API. Ordinary releases are published to `latest`.
 
 Open reproducible defects and feature requests at:
 

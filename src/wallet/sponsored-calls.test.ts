@@ -4,6 +4,7 @@ import {
   assertExactSponsoredCall,
   createBrowserSponsoredCallPendingStore,
   createSponsoredCallExecutor,
+  SponsoredCallEvidenceError,
   type PendingSponsoredCall,
   type SponsoredCall,
   type SponsoredCallPendingStore,
@@ -81,6 +82,7 @@ const persistedCall = (overrides: Partial<PendingSponsoredCall> = {}): PendingSp
   submittedAt: '2026-08-08T10:00:00.000Z',
   ...overrides,
 });
+const persistedNow = () => Date.parse('2026-08-08T10:01:00.000Z');
 
 const executeInput = (
   provider: SponsoredCallProvider,
@@ -196,25 +198,59 @@ describe('sponsored-call executor', () => {
     ]);
   });
 
-  it('returns without provider work when the injected postcondition is already true', async () => {
+  it('runs the final backend fence after signing and before provider submission', async () => {
+    const provider = createProvider();
+    const beforeSubmit = vi.fn().mockResolvedValue(undefined);
+    const executor = createSponsoredCallExecutor({ chainId });
+    const postcondition = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    await executor.execute({
+      ...executeInput(provider, postcondition),
+      beforeSubmit,
+    });
+
+    expect(beforeSubmit).toHaveBeenCalledTimes(1);
+    expect(provider.signPreparedCalls).toHaveBeenCalledBefore(beforeSubmit);
+    expect(beforeSubmit).toHaveBeenCalledBefore(provider.sendPreparedCalls as never);
+  });
+
+  it('reconciles stored provider evidence even when the host postcondition is already true', async () => {
     const provider = createProvider();
     const pending = createPendingStore(persistedCall());
     const executor = createSponsoredCallExecutor({ chainId, pendingStore: pending.store });
+    const onSubmissionEvidence = vi.fn();
+    const onReceiptEvidence = vi.fn();
 
-    await expect(executor.execute(executeInput(provider, () => true))).resolves.toEqual({
-      alreadySatisfied: true,
-      callId: null,
-      transactionHash: null,
+    await expect(
+      executor.execute({
+        ...executeInput(provider, () => true),
+        onSubmissionEvidence,
+        onReceiptEvidence,
+      }),
+    ).resolves.toEqual({
+      alreadySatisfied: false,
+      callId: 'bundle_existing',
+      transactionHash,
     });
     expect(provider.prepareCalls).not.toHaveBeenCalled();
-    expect(provider.waitForCallsStatus).not.toHaveBeenCalled();
+    expect(provider.sendPreparedCalls).not.toHaveBeenCalled();
+    expect(onSubmissionEvidence).toHaveBeenCalledExactlyOnceWith({ callId: 'bundle_existing' });
+    expect(provider.waitForCallsStatus).toHaveBeenCalledWith({
+      id: 'bundle_existing',
+      timeout: 120_000,
+      throwOnFailure: true,
+    });
+    expect(onReceiptEvidence).toHaveBeenCalledExactlyOnceWith({
+      callId: 'bundle_existing',
+      transactionHash,
+    });
     expect(pending.current()).toBeNull();
   });
 
   it('resumes an exact fresh pending operation without preparing, signing, or sending again', async () => {
     const provider = createProvider();
     const pending = createPendingStore(persistedCall());
-    const postcondition = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const postcondition = vi.fn().mockResolvedValueOnce(true);
     const executor = createSponsoredCallExecutor({
       chainId,
       pendingStore: pending.store,
@@ -235,10 +271,10 @@ describe('sponsored-call executor', () => {
     });
   });
 
-  it('clears an exact expired pending operation before submitting a replacement', async () => {
+  it('resumes an exact old pending operation without submitting a replacement', async () => {
     const provider = createProvider();
     const pending = createPendingStore(persistedCall());
-    const postcondition = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const postcondition = vi.fn().mockResolvedValueOnce(true);
     const executor = createSponsoredCallExecutor({
       chainId,
       pendingStore: pending.store,
@@ -247,9 +283,15 @@ describe('sponsored-call executor', () => {
     });
 
     await executor.execute(executeInput(provider, postcondition));
-    expect(pending.store.clear).toHaveBeenCalledTimes(2);
-    expect(provider.prepareCalls).toHaveBeenCalledTimes(1);
-    expect(provider.sendPreparedCalls).toHaveBeenCalledTimes(1);
+    expect(pending.store.clear).toHaveBeenCalledTimes(1);
+    expect(provider.prepareCalls).not.toHaveBeenCalled();
+    expect(provider.signPreparedCalls).not.toHaveBeenCalled();
+    expect(provider.sendPreparedCalls).not.toHaveBeenCalled();
+    expect(provider.waitForCallsStatus).toHaveBeenCalledWith({
+      id: 'bundle_existing',
+      timeout: 120_000,
+      throwOnFailure: true,
+    });
   });
 
   it('rejects a changed persisted operation even when its timestamp is expired', async () => {
@@ -302,10 +344,12 @@ describe('sponsored-call executor', () => {
     const terminalExecutor = createSponsoredCallExecutor({
       chainId,
       pendingStore: terminalPending.store,
+      now: persistedNow,
     });
     const retryableExecutor = createSponsoredCallExecutor({
       chainId,
       pendingStore: retryablePending.store,
+      now: persistedNow,
     });
 
     await expect(
@@ -326,10 +370,12 @@ describe('sponsored-call executor', () => {
     const missingReceiptExecutor = createSponsoredCallExecutor({
       chainId,
       pendingStore: missingReceiptPending.store,
+      now: persistedNow,
     });
     const failedPostconditionExecutor = createSponsoredCallExecutor({
       chainId,
       pendingStore: failedPostconditionPending.store,
+      now: persistedNow,
     });
 
     await expect(
@@ -415,6 +461,224 @@ describe('sponsored-call executor', () => {
       }),
     ).rejects.toThrow('non-negative bigint');
     expect(provider.prepareCalls).not.toHaveBeenCalled();
+  });
+});
+
+describe('sponsored-call durable evidence', () => {
+  it('persists the call ID before awaiting submission evidence and confirmation', async () => {
+    const provider = createProvider();
+    const pending = createPendingStore();
+    const order: string[] = [];
+    vi.mocked(pending.store.write).mockImplementation((next: PendingSponsoredCall) => {
+      order.push(`write:${next.callId}`);
+    });
+    const executor = createSponsoredCallExecutor({
+      chainId,
+      pendingStore: pending.store,
+      now: () => Date.parse('2026-08-08T10:00:00.000Z'),
+    });
+    const postcondition = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const onSubmissionEvidence = vi.fn(async ({ callId }: { callId: string }) => {
+      await Promise.resolve();
+      order.push(`evidence:${callId}`);
+      // Confirmation only starts after the owning operation holds the call ID.
+      expect(provider.waitForCallsStatus).not.toHaveBeenCalled();
+    });
+
+    await executor.execute({
+      ...executeInput(provider, postcondition),
+      onSubmissionEvidence,
+    });
+
+    expect(order).toEqual(['write:bundle_01J5', 'evidence:bundle_01J5']);
+    expect(pending.store.write).toHaveBeenCalledBefore(onSubmissionEvidence);
+    expect(onSubmissionEvidence).toHaveBeenCalledExactlyOnceWith({ callId: 'bundle_01J5' });
+  });
+
+  it('registers submission evidence with the stored ID on resume without re-sending', async () => {
+    const provider = createProvider();
+    const pending = createPendingStore(persistedCall());
+    const onSubmissionEvidence = vi.fn().mockResolvedValue(undefined);
+    const executor = createSponsoredCallExecutor({
+      chainId,
+      pendingStore: pending.store,
+      now: persistedNow,
+    });
+    const postcondition = vi.fn().mockResolvedValueOnce(true);
+
+    await executor.execute({
+      ...executeInput(provider, postcondition),
+      onSubmissionEvidence,
+    });
+
+    expect(onSubmissionEvidence).toHaveBeenCalledExactlyOnceWith({ callId: 'bundle_existing' });
+    expect(provider.prepareCalls).not.toHaveBeenCalled();
+    expect(provider.signPreparedCalls).not.toHaveBeenCalled();
+    expect(provider.sendPreparedCalls).not.toHaveBeenCalled();
+  });
+
+  it('awaits receipt evidence before the postcondition and before clearing pending state', async () => {
+    const provider = createProvider();
+    const pending = createPendingStore();
+    const order: string[] = [];
+    const postcondition = vi
+      .fn()
+      .mockImplementationOnce(() => false)
+      .mockImplementationOnce(() => {
+        order.push('postcondition');
+        return true;
+      });
+    vi.mocked(pending.store.clear).mockImplementation(() => {
+      order.push('clear');
+    });
+    const executor = createSponsoredCallExecutor({
+      chainId,
+      pendingStore: pending.store,
+      now: () => Date.parse('2026-08-08T10:00:00.000Z'),
+    });
+
+    const result = await executor.execute({
+      ...executeInput(provider, postcondition),
+      onReceiptEvidence: vi.fn(async () => {
+        await Promise.resolve();
+        order.push('receipt-evidence');
+      }),
+    });
+
+    expect(result.transactionHash).toBe(transactionHash);
+    expect(order).toEqual(['receipt-evidence', 'postcondition', 'clear']);
+  });
+
+  it('reports receipt evidence with the exact confirmed call ID and hash', async () => {
+    const onReceiptEvidence = vi.fn().mockResolvedValue(undefined);
+    const executor = createSponsoredCallExecutor({ chainId });
+    const postcondition = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    await executor.execute({
+      ...executeInput(createProvider(), postcondition),
+      onReceiptEvidence,
+    });
+
+    expect(onReceiptEvidence).toHaveBeenCalledExactlyOnceWith({
+      callId: 'bundle_01J5',
+      transactionHash,
+    });
+  });
+
+  it('keeps pending evidence when submission registration fails and resumes it on retry', async () => {
+    const provider = createProvider();
+    const pending = createPendingStore();
+    const executor = createSponsoredCallExecutor({
+      chainId,
+      pendingStore: pending.store,
+      now: () => Date.parse('2026-08-08T10:00:00.000Z'),
+    });
+    const onSubmissionEvidence = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('submission registration is unavailable'))
+      .mockResolvedValue(undefined);
+
+    await expect(
+      executor.execute({
+        ...executeInput(provider, () => false),
+        onSubmissionEvidence,
+      }),
+    ).rejects.toThrow(SponsoredCallEvidenceError);
+    expect(pending.current()?.callId).toBe('bundle_01J5');
+    expect(pending.store.clear).not.toHaveBeenCalled();
+    expect(provider.waitForCallsStatus).not.toHaveBeenCalled();
+
+    const postcondition = vi.fn().mockResolvedValueOnce(true);
+    await expect(
+      executor.execute({
+        ...executeInput(provider, postcondition),
+        onSubmissionEvidence,
+      }),
+    ).resolves.toMatchObject({ callId: 'bundle_01J5', transactionHash });
+    expect(provider.sendPreparedCalls).toHaveBeenCalledTimes(1);
+    expect(onSubmissionEvidence).toHaveBeenNthCalledWith(2, { callId: 'bundle_01J5' });
+    expect(pending.current()).toBeNull();
+  });
+
+  it('keeps pending evidence when receipt registration fails and resumes it on retry', async () => {
+    const provider = createProvider();
+    const pending = createPendingStore();
+    const executor = createSponsoredCallExecutor({
+      chainId,
+      pendingStore: pending.store,
+      now: () => Date.parse('2026-08-08T10:00:00.000Z'),
+    });
+    const onReceiptEvidence = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('receipt registration is unavailable'))
+      .mockResolvedValue(undefined);
+
+    await expect(
+      executor.execute({
+        ...executeInput(provider, () => false),
+        onReceiptEvidence,
+      }),
+    ).rejects.toThrow('receipt registration is unavailable');
+    expect(pending.current()?.callId).toBe('bundle_01J5');
+    expect(pending.store.clear).not.toHaveBeenCalled();
+
+    const postcondition = vi.fn().mockResolvedValueOnce(true);
+    await expect(
+      executor.execute({
+        ...executeInput(provider, postcondition),
+        onReceiptEvidence,
+      }),
+    ).resolves.toMatchObject({ callId: 'bundle_01J5' });
+    expect(provider.sendPreparedCalls).toHaveBeenCalledTimes(1);
+    expect(pending.current()).toBeNull();
+  });
+
+  it('surfaces evidence failures as retryable rather than provider-terminal', async () => {
+    const cause = new Error('registration endpoint returned 503');
+    const pending = createPendingStore(persistedCall());
+    const isTerminalFailure = vi.fn().mockReturnValue(true);
+    const executor = createSponsoredCallExecutor({
+      chainId,
+      pendingStore: pending.store,
+      now: persistedNow,
+      isTerminalFailure,
+    });
+
+    const error = await executor
+      .execute({
+        ...executeInput(createProvider(), () => false),
+        onSubmissionEvidence: () => {
+          throw cause;
+        },
+      })
+      .catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(SponsoredCallEvidenceError);
+    expect(error).toMatchObject({
+      name: 'SponsoredCallEvidenceError',
+      phase: 'submission',
+      callId: 'bundle_existing',
+      retryable: true,
+      cause,
+    });
+    expect(isTerminalFailure).not.toHaveBeenCalled();
+    expect(pending.current()?.callId).toBe('bundle_existing');
+  });
+
+  it('skips evidence registration entirely when the postcondition is already satisfied', async () => {
+    const onSubmissionEvidence = vi.fn();
+    const onReceiptEvidence = vi.fn();
+    const executor = createSponsoredCallExecutor({ chainId });
+
+    await expect(
+      executor.execute({
+        ...executeInput(createProvider(), () => true),
+        onSubmissionEvidence,
+        onReceiptEvidence,
+      }),
+    ).resolves.toMatchObject({ alreadySatisfied: true });
+    expect(onSubmissionEvidence).not.toHaveBeenCalled();
+    expect(onReceiptEvidence).not.toHaveBeenCalled();
   });
 });
 

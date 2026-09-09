@@ -4,14 +4,14 @@ Framework-free TypeScript transport, contract-validated investment resources,
 and injected EIP-7702 and Turnkey browser-wallet building blocks. The package
 supports Node 22+, modern browsers, ES modules, and any UI framework.
 
-> **Alpha:** transport and wallet APIs may change before `1.0`. The generated
-> investment resource subpaths are experimental contract snapshots; read
-> [Contract status](#contract-status) before using them.
+The package uses ordinary semantic versions. Before `1.0`, breaking API changes
+require a new minor version and are documented in `CHANGELOG.md`; patch releases
+preserve the supported API. Deployment-specific resource limitations still apply.
 
 ## Install
 
 ```sh
-npm install @global-torque/sdk@next
+npm install @global-torque/sdk
 ```
 
 ## Transport
@@ -41,12 +41,15 @@ The transport provides:
 
 - instance-scoped service origins, authentication, retries, hooks, and
   lifecycle;
-- exact-origin `X-API-Key` isolation and separate cookie, bearer, and anonymous
-  user-auth strategies;
-- typed, sanitized HTTP, validation, authentication, authorization,
-  rate-limit, parse, network, abort, timeout, and configuration errors;
-- safe-read retries for `GET` and `OPTIONS`, with bounded backoff, jitter, and
+- immutable body-free result metadata for request correlation, final attempt
+  count, and typed `network`/`offline-cache`/`unknown` provenance;
+- exact-origin `X-API-Key` isolation and separate cookie, bearer, typed custom
+  Authorization, and anonymous user-auth strategies;
+- typed, bounded HTTP, validation, authentication, authorization, rate-limit,
+  parse, network, abort, timeout, and configuration errors;
+- safe-read retries for `GET`, `HEAD`, and `OPTIONS`, with bounded backoff, jitter, and
   `Retry-After` handling;
+- explicit Fetch cache-mode forwarding without SDK-owned persistence policy;
 - explicit idempotency-key transport without automatic mutation retries;
 - bounded cursor pagination and deterministic testing helpers;
 - opt-in safe-read deduplication; and
@@ -55,6 +58,11 @@ The transport provides:
 The package does not depend on Vue, Pinia, React, routers, application state,
 environment loaders, or UI code. Configuration and secrets are passed by the
 host; the SDK does not read environment variables.
+
+Successful JSON and text bodies are bounded to 16 MiB by default; configure
+`maxTextResponseBodyBytes` when a documented endpoint needs another bounded
+limit, up to 512 MiB. Explicit blob and array-buffer modes retain native
+behavior and are not subject to the text limit.
 
 ## Response typing
 
@@ -71,8 +79,43 @@ const offer = await investments.get('/offers/example', {
 ```
 
 Response validators run synchronously after parsing and before hooks receive a
-result. Validator failures become sanitized `SdkResponseValidationError`
-instances; response bodies and validator messages are not copied into errors.
+result. Generated resource validators accept and preserve additive object
+fields, preserve unknown non-blank string enum values, and normalize equivalent
+exact-decimal strings. They still reject missing required fields, wrong scalar
+types, invalid financial values, and malformed relied-upon structures. Each
+resource validator exposes `.exact(value)` as an opt-in strict-schema canary.
+Resource validators can add an operation projection after wire validation; for
+example, offer reads require the identifiers their routing and feature models
+actually use without making unrelated optional fields availability gates.
+Validator failures become `SdkResponseValidationError` instances with only a
+bounded validation mode, schema keyword, and JSON pointer; response bodies and
+validator messages are not copied into errors.
+
+`OPTIONS` is raw by default. Pass `{ schema: true }` only for endpoints that
+use the legacy `schema=1` discovery convention.
+
+Every successful `SdkResult` exposes frozen `result.metadata` with the SDK-created
+correlation ID, final attempt count, and response source. The source defaults to
+`network`; a host-owned Fetch adapter may synchronously classify an already
+produced response as `offline-cache` through `resolveResponseSource`. Successful
+diagnostic events receive the same source. This hook does not read or write
+storage and does not own cache eligibility, retention, consent, last-sync
+policy, service workers, navigation, analytics taxonomy, or presentation.
+Compatibility adapters that cannot observe their inner transport provenance
+must report `unknown` rather than infer from application-specific headers, and
+must forward measured request correlation and attempt metadata from that inner
+transport rather than inventing it.
+
+Failed HTTP responses expose their bounded application-protocol body as
+`SdkHttpError.responseBody`. JSON values are parsed without filtering or
+rewriting fields; non-JSON text is preserved as a string. This data is
+untrusted: validate it immediately before use, and never send it directly to
+logs or telemetry. The property is non-enumerable to reduce accidental
+serialization, but that is not a security boundary. Malformed, truncated, and
+empty bodies are identified by `bodyKind` and are not exposed as fabricated
+protocol data. `SdkHttpError.headers` preserves the Fetch-visible response
+headers. The SDK still bounds error bytes and keeps credentialed Fetch redirect
+policy transport-owned.
 
 `collectSdkPages` and `paginateSdk` require both `maxPages` and `maxItems` and
 fail closed instead of returning an over-limit partial result.
@@ -82,6 +125,10 @@ syntax. Callers cannot override `X-API-Key`, `Authorization`,
 `Idempotency-Key`, or `X-Request-ID` through a generic headers bag. Supplying
 `idempotencyKey` does not assert server idempotency and never enables mutation
 retries.
+
+Use `authorizationAuth({ getAuthorization })` when a service needs a typed
+Authorization scheme other than Bearer. Generic request headers still cannot
+set `Authorization`, so credential ownership remains explicit and origin-bound.
 
 ## Browser wallet subpaths
 
@@ -133,38 +180,74 @@ eligibility policy remains in the host application.
 These explicit subpaths provide generated DTOs and synchronous validators:
 
 - `@global-torque/sdk/resources/evm`
+- `@global-torque/sdk/resources/distributions`
+- `@global-torque/sdk/resources/filer`
+- `@global-torque/sdk/resources/forms`
+- `@global-torque/sdk/resources/fund-manager`
+- `@global-torque/sdk/resources/invitations`
 - `@global-torque/sdk/resources/investments`
 - `@global-torque/sdk/resources/offers`
+- `@global-torque/sdk/resources/profiles`
+- `@global-torque/sdk/resources/users`
 - `@global-torque/sdk/resources/vault`
 
 Each factory accepts an already configured service client and validates both
 request parameters and successful JSON responses.
 
-### Contract status
+### Resource status
 
-Resource schemas are digest-pinned snapshots used for alpha integration, not a
-promise that every deployment implements the same revision. The EVM source
-specification currently contains success examples with unquoted hexadecimal
-YAML scalars that parse as numbers while their schemas require strings. The
-SDK does not coerce those invalid examples or represent them as authoritative
-fixtures. Offers and Vault selected examples validate against their schemas.
+Resource clients and validators are maintained as package source. Their
+presence does not prove that every deployment implements the same API revision.
+Confirm the target deployment's authentication, authorization,
+request/response, and idempotency behavior independently before enabling a
+resource in an application.
 
-Do not enable application-key deployment or mutation retries solely because a
-resource exists in this package. Confirm the target deployment's contract,
-authentication scope, and idempotency behavior independently. See
-[`CONTRACTS.md`](./CONTRACTS.md) for the complete status.
-
-`resources/investments` owns contract-backed confirmed and unconfirmed lists,
+`resources/investments` owns schema-validated confirmed and unconfirmed lists,
 detail, offer investment lists, creation, amount, signature, review, and cancel
 operations. It deliberately excludes the legacy ownership, funding, notes, and
-OPTIONS compatibility methods because those operations are absent from the
-pinned backend contract.
+OPTIONS compatibility methods because those operations are not part of the
+supported SDK surface.
 
-The planned `./resources/profiles`, `./resources/invitations`, and
-`./resources/fund-manager` subpaths are not exported yet. Their current app
-models contain product policy or lack authoritative backend schemas. The full
-ERC-7540 prepare/arm/claim lifecycle is likewise deferred; `resources/vault`
-exposes only the operations present in the pinned contract.
+The Users, Profiles, Invitations, Fund Manager, Filer, Distributions, and Forms
+subpaths contain request construction and synchronous JSON validation, not app
+state, workflows, routes, or UI policy.
+Ory sessions/settings remain in the host identity integration and there is no
+SDK settings resource. The full ERC-7540 prepare/arm/claim lifecycle is still
+deferred; `resources/vault` exposes only the operations present in its current
+package implementation.
+
+Filer downloads require explicit credential separation. Construct the Filer
+resource with its authenticated API client plus two keyless clients: an
+origin-bound object-store client for signed URLs and a Filer public-download
+client that may follow the service's documented redirect. `downloadFile`
+obtains and validates the signed URL through the authenticated endpoint, then
+fetches it through the keyless object-store client. Never log or persist the
+signed URL.
+
+```ts
+const transport = createInvestSdkTransport({
+  apiKey: process.env.FILER_API_KEY,
+  services: {
+    filer: { baseUrl: 'https://filer.example.com/v1.0/' },
+    filerSignedDownloads: {
+      baseUrl: 'https://objects.example.com/',
+      applicationAuth: 'none',
+      auth: { kind: 'none', credentials: 'omit' },
+    },
+    filerPublicDownloads: {
+      baseUrl: 'https://filer.example.com/v1.0/',
+      applicationAuth: 'none',
+      auth: { kind: 'none', credentials: 'omit' },
+      redirectPolicy: 'follow',
+    },
+  },
+});
+
+const filer = createFilerResource(transport.createServiceClient('filer'), {
+  signedDownloadClient: transport.createKeylessServiceClient('filerSignedDownloads'),
+  publicDownloadClient: transport.createKeylessServiceClient('filerPublicDownloads'),
+});
+```
 
 ## Public API
 
@@ -172,8 +255,10 @@ The package uses explicit exports only:
 
 - root transport, auth, errors, pagination, and types;
 - `./auth`, `./errors`, `./pagination`, `./testing`, and `./types`;
-- `./resources/auth`, `./resources/evm`, `./resources/investments`,
-  `./resources/offers`, and `./resources/vault`; and
+- `./resources/auth`, `./resources/distributions`, `./resources/evm`,
+  `./resources/filer`, `./resources/forms`, `./resources/fund-manager`,
+  `./resources/invitations`, `./resources/investments`, `./resources/offers`,
+  `./resources/profiles`, `./resources/users`, and `./resources/vault`; and
 - `./wallet/eip7702`, `./wallet/turnkey`, and `./wallet/sponsored-calls`.
 
 ## Development
@@ -192,11 +277,15 @@ pnpm run pack:smoke
 ```
 
 `pack:safe` snapshots one verified content-addressed build generation and packs
-only the manifest allowlist. `pack:smoke` installs that exact tarball into a
-clean temporary consumer, typechecks every exported subpath, and runs transport
-and wallet assertions.
+only the manifest allowlist. `pack:smoke` rejects upper-layer SDK-family,
+application/private, framework, runtime, workspace, and ambient-environment
+coupling in the packed manifest and JavaScript/declarations. It installs that
+exact tarball into separate clean npm and pnpm consumers, typechecks and imports
+every explicit exported subpath, and runs transport and wallet assertions.
 
-Releases are immutable: a failed alpha receives a new version. A source tag
+Releases are immutable: a failed candidate receives a new version. Ordinary
+versions publish to `latest` as normal GitHub releases; retained legacy alpha
+versions use `next` and GitHub prereleases. A source tag
 builds and attests one tarball, and a separate manual workflow verifies the
 immutable GitHub release, attestation, checksum, per-file manifest, and clean
 consumer before publishing those exact bytes.
@@ -206,6 +295,25 @@ configured. The first version therefore uses the publish workflow's explicit
 bootstrap mode with a temporary granular npm token and `--provenance`. The
 token is then revoked and removed, and later versions use the same workflow
 through npm trusted publishing without a long-lived token.
+
+The release workflow also publishes `npm-provenance.json`, a signed Sigstore
+bundle whose subject is the versioned npm package URL and the exact tarball's
+SHA-512 digest. It is a separate immutable GitHub release asset, outside the
+three-file `release/` directory checked by `release:verify`. The original
+tarball attestation is retained as well.
+
+An authorized token publisher may use that pre-generated bundle after verifying
+the immutable release assets, workflow/source identity and exact tarball checks:
+
+```sh
+npm publish ./release/global-torque-sdk-0.2.0.tgz --access public --tag latest \
+  --provenance=false --provenance-file ./npm-provenance.json
+```
+
+`--provenance=false` selects the supplied signed provenance instead of requesting
+a new CI signature; it does not permit publication without provenance. npm
+verifies the supplied bundle's signature and package/digest subject. Never
+rebuild the tarball or use a bundle from a different version or source release.
 
 ## Support and security
 

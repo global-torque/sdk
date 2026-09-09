@@ -23,7 +23,7 @@ jobs:
           node-version: ${{ matrix.node }}
           package-manager-cache: false
       - run: corepack enable
-      - run: corepack prepare pnpm@10.33.0 --activate
+      - run: corepack prepare pnpm@10.34.5 --activate
       - run: pnpm install --frozen-lockfile
       - run: pnpm run format:check
       - run: pnpm run lint

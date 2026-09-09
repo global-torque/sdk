@@ -19,8 +19,14 @@ export const DEFAULT_EIP_7702_CONFIRMATION_TIMEOUT_MS = 120_000;
 export interface Eip7702Signer {
   address: `0x${string}`;
   signMessage: (parameters: { message: SignableMessage }) => Promise<Hex>;
-  signTypedData: (parameters: unknown) => Promise<Hex>;
-  signAuthorization?: (parameters: unknown) => Promise<{
+  // Method syntax, not property syntax: viem's `LocalAccount` declares
+  // `signTypedData`/`signAuthorization` with specific generic parameters, which
+  // `strictFunctionTypes` rejects against a contravariant `(parameters: unknown)`
+  // property. Without the bivariant method form the runtime's own
+  // `createSigner()` result cannot be passed to `ensureDelegation()` by a strict
+  // consumer, so the SDK's two wallet halves would not compose.
+  signTypedData(parameters: unknown): Promise<Hex>;
+  signAuthorization?(parameters: unknown): Promise<{
     r: `0x${string}`;
     s: `0x${string}`;
     v?: number | bigint | string;
@@ -222,7 +228,7 @@ export function assertSafeEip7702PreparedCalls(
   };
   if (
     authorization.type !== 'authorization' ||
-    Number(authorization.chainId) !== chainId ||
+    authorization.chainId !== chainId ||
     normalizeAddress(authorization.data?.address) !== delegateAddress ||
     authorization.signatureRequest?.type !== 'eip7702Auth'
   ) {
@@ -238,7 +244,7 @@ export function assertSafeEip7702PreparedCalls(
   };
   const calls = prepared.details?.data?.calls;
   if (
-    Number(userOperation.chainId) !== chainId ||
+    userOperation.chainId !== chainId ||
     normalizeAddress(userOperation.data?.sender) !== normalizeAddress(expectedWalletAddress) ||
     userOperation.feePayment?.sponsored !== true ||
     prepared.details?.type !== 'user-operation' ||
