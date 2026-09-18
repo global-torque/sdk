@@ -30,8 +30,7 @@ const redemption = {
   offer_id: 77,
   profile_id: 42,
   vault_request_origin: 'application',
-  status: 'open',
-  pricing_status: 'awaiting_dealing_nav',
+  status: 'pending',
   share_amount_raw: '250000000000000000',
   pending_shares_raw: '0',
   claimable_assets_raw: '0',
@@ -75,7 +74,6 @@ describe('Vault resource', () => {
       pricing_source: 'manager_dealing_price',
       dealing_price_usdc_raw: '25000000',
       priced_by_user_id: 1,
-      priced_request_effect_id: 501,
       delta_from_estimate_raw: null,
     };
     const context = setup([
@@ -89,7 +87,6 @@ describe('Vault resource', () => {
                 ...redemption,
                 request_origin: 'application',
                 estimate: null,
-                pricing_status: 'priced',
                 final: quote,
                 operations: {},
               },

@@ -2687,6 +2687,12 @@ export interface RedemptionDealingCutoff {
 // @public
 export interface RedemptionDetail {
     // (undocumented)
+    readonly approval_preflight_evidence_id?: number | null;
+    // (undocumented)
+    readonly approved_at?: string | null;
+    // (undocumented)
+    readonly approved_by_user_id?: number | null;
+    // (undocumented)
     readonly asset_amount_raw?: RawUint256 | null;
     // (undocumented)
     readonly cancelled_at?: string | null;
@@ -2710,6 +2716,12 @@ export interface RedemptionDetail {
     readonly dealing_cutoff_block_number?: number | null;
     // (undocumented)
     readonly dealing_price_usdc_raw?: RawUint256 | null;
+    // (undocumented)
+    readonly denial_reason?: string | null;
+    // (undocumented)
+    readonly denied_at?: string | null;
+    // (undocumented)
+    readonly denied_by_user_id?: number | null;
     // (undocumented)
     readonly estimate_delta_raw?: RawSignedInteger | null;
     // (undocumented)
@@ -2753,11 +2765,7 @@ export interface RedemptionDetail {
     // (undocumented)
     readonly priced_by_user_id?: number | null;
     // (undocumented)
-    readonly priced_request_effect_id?: number | null;
-    // (undocumented)
     readonly pricing_source?: string | null;
-    // (undocumented)
-    readonly pricing_status: 'awaiting_dealing_nav' | 'priced' | (string & {});
     // (undocumented)
     readonly profile_id: number;
     // (undocumented)
@@ -2775,7 +2783,7 @@ export interface RedemptionDetail {
     // (undocumented)
     readonly share_amount_raw: RawUint256;
     // (undocumented)
-    readonly status: 'open' | 'completed' | 'cancelled' | (string & {});
+    readonly status: 'pending' | 'approved' | 'denied' | 'cancelled' | 'completed' | (string & {});
     // (undocumented)
     readonly transition_version?: number;
     // (undocumented)
@@ -2822,8 +2830,6 @@ export interface RedemptionFinalPrice {
     readonly priced_at?: string | null;
     // (undocumented)
     readonly priced_by_user_id?: number | null;
-    // (undocumented)
-    readonly priced_request_effect_id?: number | null;
     // (undocumented)
     readonly pricing_source?: string | null;
     // (undocumented)
@@ -4052,8 +4058,6 @@ export interface VaultRedemptionLifecycle {
     // (undocumented)
     readonly pending_shares_raw: RawUint256;
     // (undocumented)
-    readonly pricing_status: 'awaiting_dealing_nav' | 'priced' | (string & {});
-    // (undocumented)
     readonly protocol_state: 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | (string & {});
     // (undocumented)
     readonly request_effect_id?: number | null;
@@ -4061,6 +4065,8 @@ export interface VaultRedemptionLifecycle {
     readonly request_origin: 'application' | 'chain' | (string & {});
     // (undocumented)
     readonly share_amount_raw: RawUint256;
+    // (undocumented)
+    readonly status: 'pending' | 'approved' | 'denied' | 'cancelled' | 'completed' | (string & {});
 }
 
 // @public

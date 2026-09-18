@@ -267,7 +267,7 @@ export interface VaultRedemptionLifecycle {
   readonly id: number;
   readonly request_origin: 'application' | 'chain' | (string & {});
   readonly request_effect_id?: number | null;
-  readonly pricing_status: 'awaiting_dealing_nav' | 'priced' | (string & {});
+  readonly status: 'pending' | 'approved' | 'denied' | 'cancelled' | 'completed' | (string & {});
   readonly protocol_state: 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | (string & {});
   readonly share_amount_raw: RawUint256;
   readonly pending_shares_raw: RawUint256;
@@ -303,7 +303,6 @@ export interface RedemptionFinalPrice {
   readonly pricing_source?: string | null;
   readonly dealing_price_usdc_raw?: RawUint256 | null;
   readonly priced_by_user_id?: number | null;
-  readonly priced_request_effect_id?: number | null;
   readonly priced_at?: string | null;
   readonly nav_record_id?: number | null;
   readonly nav_version?: number | null;
@@ -417,7 +416,6 @@ export interface RedemptionDetail {
   readonly pricing_source?: string | null;
   readonly dealing_price_usdc_raw?: RawUint256 | null;
   readonly priced_by_user_id?: number | null;
-  readonly priced_request_effect_id?: number | null;
   readonly id: number;
   readonly offer_id: number;
   readonly profile_id: number;
@@ -428,9 +426,8 @@ export interface RedemptionDetail {
   readonly vault_request_origin: 'application' | 'chain' | (string & {});
   readonly vault_request_effect_id?: number | null;
   readonly request_effect_state?: 'assigned' | 'unassigned' | (string & {});
-  readonly status: 'open' | 'completed' | 'cancelled' | (string & {});
+  readonly status: 'pending' | 'approved' | 'denied' | 'cancelled' | 'completed' | (string & {});
   readonly idempotency_key?: string;
-  readonly pricing_status: 'awaiting_dealing_nav' | 'priced' | (string & {});
   readonly estimated_nav_record_id?: number | null;
   readonly estimated_nav_usdc_raw?: RawUint256 | null;
   readonly estimated_nav_version?: number | null;
@@ -446,6 +443,12 @@ export interface RedemptionDetail {
   readonly nav_valuation_block_number?: number | null;
   readonly nav_valuation_as_of?: string | null;
   readonly priced_at?: string | null;
+  readonly approved_at?: string | null;
+  readonly approved_by_user_id?: number | null;
+  readonly denied_at?: string | null;
+  readonly denied_by_user_id?: number | null;
+  readonly denial_reason?: string | null;
+  readonly approval_preflight_evidence_id?: number | null;
   readonly liquidity_shortfall_raw?: RawUint256;
   readonly asset_amount_raw?: RawUint256 | null;
   readonly share_amount_raw: RawUint256;
@@ -2195,7 +2198,7 @@ export const investmentDetailSchema = {
       required: [
         'id',
         'request_origin',
-        'pricing_status',
+        'status',
         'protocol_state',
         'share_amount_raw',
         'pending_shares_raw',
@@ -2225,9 +2228,9 @@ export const investmentDetailSchema = {
             },
           ],
         },
-        pricing_status: {
+        status: {
           type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         protocol_state: {
           type: 'string',
@@ -2358,7 +2361,6 @@ export const investmentDetailSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
         priced_at: { type: ['string', 'null'] },
         nav_record_id: { type: ['integer', 'null'] },
         nav_version: { type: ['integer', 'null'] },
@@ -3088,7 +3090,7 @@ export const investmentDetailSchema = {
                 id: 501,
                 request_origin: 'application',
                 request_effect_id: 9010,
-                pricing_status: 'priced',
+                status: 'approved',
                 protocol_state: 'pending',
                 share_amount_raw: '250000000000000000',
                 pending_shares_raw: '250000000000000000',
@@ -3152,7 +3154,6 @@ export const investmentDetailSchema = {
         'profile_id',
         'vault_request_origin',
         'status',
-        'pricing_status',
         'share_amount_raw',
         'pending_shares_raw',
         'claimable_assets_raw',
@@ -3165,7 +3166,12 @@ export const investmentDetailSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
+        approved_at: { type: ['string', 'null'] },
+        approved_by_user_id: { type: ['integer', 'null'] },
+        denied_at: { type: ['string', 'null'] },
+        denied_by_user_id: { type: ['integer', 'null'] },
+        denial_reason: { type: ['string', 'null'] },
+        approval_preflight_evidence_id: { type: ['integer', 'null'] },
         id: {
           type: 'integer',
           format: 'int64',
@@ -3216,14 +3222,10 @@ export const investmentDetailSchema = {
         },
         status: {
           type: 'string',
-          enum: ['open', 'completed', 'cancelled'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         idempotency_key: {
           type: 'string',
-        },
-        pricing_status: {
-          type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
         },
         estimated_nav_record_id: {
           anyOf: [
@@ -4893,7 +4895,7 @@ export const investmentListResponseSchema = {
       required: [
         'id',
         'request_origin',
-        'pricing_status',
+        'status',
         'protocol_state',
         'share_amount_raw',
         'pending_shares_raw',
@@ -4923,9 +4925,9 @@ export const investmentListResponseSchema = {
             },
           ],
         },
-        pricing_status: {
+        status: {
           type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         protocol_state: {
           type: 'string',
@@ -5056,7 +5058,6 @@ export const investmentListResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
         priced_at: { type: ['string', 'null'] },
         nav_record_id: { type: ['integer', 'null'] },
         nav_version: { type: ['integer', 'null'] },
@@ -5786,7 +5787,7 @@ export const investmentListResponseSchema = {
                 id: 501,
                 request_origin: 'application',
                 request_effect_id: 9010,
-                pricing_status: 'priced',
+                status: 'approved',
                 protocol_state: 'pending',
                 share_amount_raw: '250000000000000000',
                 pending_shares_raw: '250000000000000000',
@@ -5850,7 +5851,6 @@ export const investmentListResponseSchema = {
         'profile_id',
         'vault_request_origin',
         'status',
-        'pricing_status',
         'share_amount_raw',
         'pending_shares_raw',
         'claimable_assets_raw',
@@ -5863,7 +5863,12 @@ export const investmentListResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
+        approved_at: { type: ['string', 'null'] },
+        approved_by_user_id: { type: ['integer', 'null'] },
+        denied_at: { type: ['string', 'null'] },
+        denied_by_user_id: { type: ['integer', 'null'] },
+        denial_reason: { type: ['string', 'null'] },
+        approval_preflight_evidence_id: { type: ['integer', 'null'] },
         id: {
           type: 'integer',
           format: 'int64',
@@ -5914,14 +5919,10 @@ export const investmentListResponseSchema = {
         },
         status: {
           type: 'string',
-          enum: ['open', 'completed', 'cancelled'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         idempotency_key: {
           type: 'string',
-        },
-        pricing_status: {
-          type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
         },
         estimated_nav_record_id: {
           anyOf: [
@@ -7600,7 +7601,7 @@ export const confirmedInvestmentListResponseSchema = {
       required: [
         'id',
         'request_origin',
-        'pricing_status',
+        'status',
         'protocol_state',
         'share_amount_raw',
         'pending_shares_raw',
@@ -7630,9 +7631,9 @@ export const confirmedInvestmentListResponseSchema = {
             },
           ],
         },
-        pricing_status: {
+        status: {
           type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         protocol_state: {
           type: 'string',
@@ -7763,7 +7764,6 @@ export const confirmedInvestmentListResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
         priced_at: { type: ['string', 'null'] },
         nav_record_id: { type: ['integer', 'null'] },
         nav_version: { type: ['integer', 'null'] },
@@ -8493,7 +8493,7 @@ export const confirmedInvestmentListResponseSchema = {
                 id: 501,
                 request_origin: 'application',
                 request_effect_id: 9010,
-                pricing_status: 'priced',
+                status: 'approved',
                 protocol_state: 'pending',
                 share_amount_raw: '250000000000000000',
                 pending_shares_raw: '250000000000000000',
@@ -8557,7 +8557,6 @@ export const confirmedInvestmentListResponseSchema = {
         'profile_id',
         'vault_request_origin',
         'status',
-        'pricing_status',
         'share_amount_raw',
         'pending_shares_raw',
         'claimable_assets_raw',
@@ -8570,7 +8569,12 @@ export const confirmedInvestmentListResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
+        approved_at: { type: ['string', 'null'] },
+        approved_by_user_id: { type: ['integer', 'null'] },
+        denied_at: { type: ['string', 'null'] },
+        denied_by_user_id: { type: ['integer', 'null'] },
+        denial_reason: { type: ['string', 'null'] },
+        approval_preflight_evidence_id: { type: ['integer', 'null'] },
         id: {
           type: 'integer',
           format: 'int64',
@@ -8621,14 +8625,10 @@ export const confirmedInvestmentListResponseSchema = {
         },
         status: {
           type: 'string',
-          enum: ['open', 'completed', 'cancelled'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         idempotency_key: {
           type: 'string',
-        },
-        pricing_status: {
-          type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
         },
         estimated_nav_record_id: {
           anyOf: [
@@ -10316,7 +10316,7 @@ export const offerInvestmentProfileListResponseSchema = {
       required: [
         'id',
         'request_origin',
-        'pricing_status',
+        'status',
         'protocol_state',
         'share_amount_raw',
         'pending_shares_raw',
@@ -10346,9 +10346,9 @@ export const offerInvestmentProfileListResponseSchema = {
             },
           ],
         },
-        pricing_status: {
+        status: {
           type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         protocol_state: {
           type: 'string',
@@ -10479,7 +10479,6 @@ export const offerInvestmentProfileListResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
         priced_at: { type: ['string', 'null'] },
         nav_record_id: { type: ['integer', 'null'] },
         nav_version: { type: ['integer', 'null'] },
@@ -11209,7 +11208,7 @@ export const offerInvestmentProfileListResponseSchema = {
                 id: 501,
                 request_origin: 'application',
                 request_effect_id: 9010,
-                pricing_status: 'priced',
+                status: 'approved',
                 protocol_state: 'pending',
                 share_amount_raw: '250000000000000000',
                 pending_shares_raw: '250000000000000000',
@@ -11273,7 +11272,6 @@ export const offerInvestmentProfileListResponseSchema = {
         'profile_id',
         'vault_request_origin',
         'status',
-        'pricing_status',
         'share_amount_raw',
         'pending_shares_raw',
         'claimable_assets_raw',
@@ -11286,7 +11284,12 @@ export const offerInvestmentProfileListResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
+        approved_at: { type: ['string', 'null'] },
+        approved_by_user_id: { type: ['integer', 'null'] },
+        denied_at: { type: ['string', 'null'] },
+        denied_by_user_id: { type: ['integer', 'null'] },
+        denial_reason: { type: ['string', 'null'] },
+        approval_preflight_evidence_id: { type: ['integer', 'null'] },
         id: {
           type: 'integer',
           format: 'int64',
@@ -11337,14 +11340,10 @@ export const offerInvestmentProfileListResponseSchema = {
         },
         status: {
           type: 'string',
-          enum: ['open', 'completed', 'cancelled'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         idempotency_key: {
           type: 'string',
-        },
-        pricing_status: {
-          type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
         },
         estimated_nav_record_id: {
           anyOf: [
@@ -12955,7 +12954,7 @@ export const amountStepSchema = {
       required: [
         'id',
         'request_origin',
-        'pricing_status',
+        'status',
         'protocol_state',
         'share_amount_raw',
         'pending_shares_raw',
@@ -12985,9 +12984,9 @@ export const amountStepSchema = {
             },
           ],
         },
-        pricing_status: {
+        status: {
           type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         protocol_state: {
           type: 'string',
@@ -13118,7 +13117,6 @@ export const amountStepSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
         priced_at: { type: ['string', 'null'] },
         nav_record_id: { type: ['integer', 'null'] },
         nav_version: { type: ['integer', 'null'] },
@@ -13848,7 +13846,7 @@ export const amountStepSchema = {
                 id: 501,
                 request_origin: 'application',
                 request_effect_id: 9010,
-                pricing_status: 'priced',
+                status: 'approved',
                 protocol_state: 'pending',
                 share_amount_raw: '250000000000000000',
                 pending_shares_raw: '250000000000000000',
@@ -13912,7 +13910,6 @@ export const amountStepSchema = {
         'profile_id',
         'vault_request_origin',
         'status',
-        'pricing_status',
         'share_amount_raw',
         'pending_shares_raw',
         'claimable_assets_raw',
@@ -13925,7 +13922,12 @@ export const amountStepSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
+        approved_at: { type: ['string', 'null'] },
+        approved_by_user_id: { type: ['integer', 'null'] },
+        denied_at: { type: ['string', 'null'] },
+        denied_by_user_id: { type: ['integer', 'null'] },
+        denial_reason: { type: ['string', 'null'] },
+        approval_preflight_evidence_id: { type: ['integer', 'null'] },
         id: {
           type: 'integer',
           format: 'int64',
@@ -13976,14 +13978,10 @@ export const amountStepSchema = {
         },
         status: {
           type: 'string',
-          enum: ['open', 'completed', 'cancelled'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         idempotency_key: {
           type: 'string',
-        },
-        pricing_status: {
-          type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
         },
         estimated_nav_record_id: {
           anyOf: [
@@ -15585,7 +15583,7 @@ export const signatureStepSchema = {
       required: [
         'id',
         'request_origin',
-        'pricing_status',
+        'status',
         'protocol_state',
         'share_amount_raw',
         'pending_shares_raw',
@@ -15615,9 +15613,9 @@ export const signatureStepSchema = {
             },
           ],
         },
-        pricing_status: {
+        status: {
           type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         protocol_state: {
           type: 'string',
@@ -15748,7 +15746,6 @@ export const signatureStepSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
         priced_at: { type: ['string', 'null'] },
         nav_record_id: { type: ['integer', 'null'] },
         nav_version: { type: ['integer', 'null'] },
@@ -16478,7 +16475,7 @@ export const signatureStepSchema = {
                 id: 501,
                 request_origin: 'application',
                 request_effect_id: 9010,
-                pricing_status: 'priced',
+                status: 'approved',
                 protocol_state: 'pending',
                 share_amount_raw: '250000000000000000',
                 pending_shares_raw: '250000000000000000',
@@ -16542,7 +16539,6 @@ export const signatureStepSchema = {
         'profile_id',
         'vault_request_origin',
         'status',
-        'pricing_status',
         'share_amount_raw',
         'pending_shares_raw',
         'claimable_assets_raw',
@@ -16555,7 +16551,12 @@ export const signatureStepSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
+        approved_at: { type: ['string', 'null'] },
+        approved_by_user_id: { type: ['integer', 'null'] },
+        denied_at: { type: ['string', 'null'] },
+        denied_by_user_id: { type: ['integer', 'null'] },
+        denial_reason: { type: ['string', 'null'] },
+        approval_preflight_evidence_id: { type: ['integer', 'null'] },
         id: {
           type: 'integer',
           format: 'int64',
@@ -16606,14 +16607,10 @@ export const signatureStepSchema = {
         },
         status: {
           type: 'string',
-          enum: ['open', 'completed', 'cancelled'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         idempotency_key: {
           type: 'string',
-        },
-        pricing_status: {
-          type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
         },
         estimated_nav_record_id: {
           anyOf: [
@@ -18233,7 +18230,7 @@ export const reviewStepResponseSchema = {
       required: [
         'id',
         'request_origin',
-        'pricing_status',
+        'status',
         'protocol_state',
         'share_amount_raw',
         'pending_shares_raw',
@@ -18263,9 +18260,9 @@ export const reviewStepResponseSchema = {
             },
           ],
         },
-        pricing_status: {
+        status: {
           type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         protocol_state: {
           type: 'string',
@@ -18396,7 +18393,6 @@ export const reviewStepResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
         priced_at: { type: ['string', 'null'] },
         nav_record_id: { type: ['integer', 'null'] },
         nav_version: { type: ['integer', 'null'] },
@@ -19126,7 +19122,7 @@ export const reviewStepResponseSchema = {
                 id: 501,
                 request_origin: 'application',
                 request_effect_id: 9010,
-                pricing_status: 'priced',
+                status: 'approved',
                 protocol_state: 'pending',
                 share_amount_raw: '250000000000000000',
                 pending_shares_raw: '250000000000000000',
@@ -19190,7 +19186,6 @@ export const reviewStepResponseSchema = {
         'profile_id',
         'vault_request_origin',
         'status',
-        'pricing_status',
         'share_amount_raw',
         'pending_shares_raw',
         'claimable_assets_raw',
@@ -19203,7 +19198,12 @@ export const reviewStepResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
+        approved_at: { type: ['string', 'null'] },
+        approved_by_user_id: { type: ['integer', 'null'] },
+        denied_at: { type: ['string', 'null'] },
+        denied_by_user_id: { type: ['integer', 'null'] },
+        denial_reason: { type: ['string', 'null'] },
+        approval_preflight_evidence_id: { type: ['integer', 'null'] },
         id: {
           type: 'integer',
           format: 'int64',
@@ -19254,14 +19254,10 @@ export const reviewStepResponseSchema = {
         },
         status: {
           type: 'string',
-          enum: ['open', 'completed', 'cancelled'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         idempotency_key: {
           type: 'string',
-        },
-        pricing_status: {
-          type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
         },
         estimated_nav_record_id: {
           anyOf: [
@@ -20846,7 +20842,7 @@ export const emptyResponseSchema = {
       required: [
         'id',
         'request_origin',
-        'pricing_status',
+        'status',
         'protocol_state',
         'share_amount_raw',
         'pending_shares_raw',
@@ -20876,9 +20872,9 @@ export const emptyResponseSchema = {
             },
           ],
         },
-        pricing_status: {
+        status: {
           type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         protocol_state: {
           type: 'string',
@@ -21009,7 +21005,6 @@ export const emptyResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
         priced_at: { type: ['string', 'null'] },
         nav_record_id: { type: ['integer', 'null'] },
         nav_version: { type: ['integer', 'null'] },
@@ -21739,7 +21734,7 @@ export const emptyResponseSchema = {
                 id: 501,
                 request_origin: 'application',
                 request_effect_id: 9010,
-                pricing_status: 'priced',
+                status: 'approved',
                 protocol_state: 'pending',
                 share_amount_raw: '250000000000000000',
                 pending_shares_raw: '250000000000000000',
@@ -21803,7 +21798,6 @@ export const emptyResponseSchema = {
         'profile_id',
         'vault_request_origin',
         'status',
-        'pricing_status',
         'share_amount_raw',
         'pending_shares_raw',
         'claimable_assets_raw',
@@ -21816,7 +21810,12 @@ export const emptyResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
+        approved_at: { type: ['string', 'null'] },
+        approved_by_user_id: { type: ['integer', 'null'] },
+        denied_at: { type: ['string', 'null'] },
+        denied_by_user_id: { type: ['integer', 'null'] },
+        denial_reason: { type: ['string', 'null'] },
+        approval_preflight_evidence_id: { type: ['integer', 'null'] },
         id: {
           type: 'integer',
           format: 'int64',
@@ -21867,14 +21866,10 @@ export const emptyResponseSchema = {
         },
         status: {
           type: 'string',
-          enum: ['open', 'completed', 'cancelled'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         idempotency_key: {
           type: 'string',
-        },
-        pricing_status: {
-          type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
         },
         estimated_nav_record_id: {
           anyOf: [
@@ -22317,7 +22312,7 @@ export const positionResponseSchema = {
             id: 501,
             request_origin: 'application',
             request_effect_id: 9010,
-            pricing_status: 'priced',
+            status: 'approved',
             protocol_state: 'pending',
             share_amount_raw: '250000000000000000',
             pending_shares_raw: '250000000000000000',
@@ -23605,7 +23600,7 @@ export const positionResponseSchema = {
       required: [
         'id',
         'request_origin',
-        'pricing_status',
+        'status',
         'protocol_state',
         'share_amount_raw',
         'pending_shares_raw',
@@ -23635,9 +23630,9 @@ export const positionResponseSchema = {
             },
           ],
         },
-        pricing_status: {
+        status: {
           type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         protocol_state: {
           type: 'string',
@@ -23768,7 +23763,6 @@ export const positionResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
         priced_at: { type: ['string', 'null'] },
         nav_record_id: { type: ['integer', 'null'] },
         nav_version: { type: ['integer', 'null'] },
@@ -24498,7 +24492,7 @@ export const positionResponseSchema = {
                 id: 501,
                 request_origin: 'application',
                 request_effect_id: 9010,
-                pricing_status: 'priced',
+                status: 'approved',
                 protocol_state: 'pending',
                 share_amount_raw: '250000000000000000',
                 pending_shares_raw: '250000000000000000',
@@ -24562,7 +24556,6 @@ export const positionResponseSchema = {
         'profile_id',
         'vault_request_origin',
         'status',
-        'pricing_status',
         'share_amount_raw',
         'pending_shares_raw',
         'claimable_assets_raw',
@@ -24575,7 +24568,12 @@ export const positionResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
+        approved_at: { type: ['string', 'null'] },
+        approved_by_user_id: { type: ['integer', 'null'] },
+        denied_at: { type: ['string', 'null'] },
+        denied_by_user_id: { type: ['integer', 'null'] },
+        denial_reason: { type: ['string', 'null'] },
+        approval_preflight_evidence_id: { type: ['integer', 'null'] },
         id: {
           type: 'integer',
           format: 'int64',
@@ -24626,14 +24624,10 @@ export const positionResponseSchema = {
         },
         status: {
           type: 'string',
-          enum: ['open', 'completed', 'cancelled'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         idempotency_key: {
           type: 'string',
-        },
-        pricing_status: {
-          type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
         },
         estimated_nav_record_id: {
           anyOf: [
@@ -26225,7 +26219,7 @@ export const redemptionCommandResponseSchema = {
       required: [
         'id',
         'request_origin',
-        'pricing_status',
+        'status',
         'protocol_state',
         'share_amount_raw',
         'pending_shares_raw',
@@ -26255,9 +26249,9 @@ export const redemptionCommandResponseSchema = {
             },
           ],
         },
-        pricing_status: {
+        status: {
           type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         protocol_state: {
           type: 'string',
@@ -26388,7 +26382,6 @@ export const redemptionCommandResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
         priced_at: { type: ['string', 'null'] },
         nav_record_id: { type: ['integer', 'null'] },
         nav_version: { type: ['integer', 'null'] },
@@ -27118,7 +27111,7 @@ export const redemptionCommandResponseSchema = {
                 id: 501,
                 request_origin: 'application',
                 request_effect_id: 9010,
-                pricing_status: 'priced',
+                status: 'approved',
                 protocol_state: 'pending',
                 share_amount_raw: '250000000000000000',
                 pending_shares_raw: '250000000000000000',
@@ -27182,7 +27175,6 @@ export const redemptionCommandResponseSchema = {
         'profile_id',
         'vault_request_origin',
         'status',
-        'pricing_status',
         'share_amount_raw',
         'pending_shares_raw',
         'claimable_assets_raw',
@@ -27195,7 +27187,12 @@ export const redemptionCommandResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
+        approved_at: { type: ['string', 'null'] },
+        approved_by_user_id: { type: ['integer', 'null'] },
+        denied_at: { type: ['string', 'null'] },
+        denied_by_user_id: { type: ['integer', 'null'] },
+        denial_reason: { type: ['string', 'null'] },
+        approval_preflight_evidence_id: { type: ['integer', 'null'] },
         id: {
           type: 'integer',
           format: 'int64',
@@ -27246,14 +27243,10 @@ export const redemptionCommandResponseSchema = {
         },
         status: {
           type: 'string',
-          enum: ['open', 'completed', 'cancelled'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         idempotency_key: {
           type: 'string',
-        },
-        pricing_status: {
-          type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
         },
         estimated_nav_record_id: {
           anyOf: [
@@ -28842,7 +28835,7 @@ export const redemptionResponseSchema = {
       required: [
         'id',
         'request_origin',
-        'pricing_status',
+        'status',
         'protocol_state',
         'share_amount_raw',
         'pending_shares_raw',
@@ -28872,9 +28865,9 @@ export const redemptionResponseSchema = {
             },
           ],
         },
-        pricing_status: {
+        status: {
           type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         protocol_state: {
           type: 'string',
@@ -29005,7 +28998,6 @@ export const redemptionResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
         priced_at: { type: ['string', 'null'] },
         nav_record_id: { type: ['integer', 'null'] },
         nav_version: { type: ['integer', 'null'] },
@@ -29735,7 +29727,7 @@ export const redemptionResponseSchema = {
                 id: 501,
                 request_origin: 'application',
                 request_effect_id: 9010,
-                pricing_status: 'priced',
+                status: 'approved',
                 protocol_state: 'pending',
                 share_amount_raw: '250000000000000000',
                 pending_shares_raw: '250000000000000000',
@@ -29799,7 +29791,6 @@ export const redemptionResponseSchema = {
         'profile_id',
         'vault_request_origin',
         'status',
-        'pricing_status',
         'share_amount_raw',
         'pending_shares_raw',
         'claimable_assets_raw',
@@ -29812,7 +29803,12 @@ export const redemptionResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
+        approved_at: { type: ['string', 'null'] },
+        approved_by_user_id: { type: ['integer', 'null'] },
+        denied_at: { type: ['string', 'null'] },
+        denied_by_user_id: { type: ['integer', 'null'] },
+        denial_reason: { type: ['string', 'null'] },
+        approval_preflight_evidence_id: { type: ['integer', 'null'] },
         id: {
           type: 'integer',
           format: 'int64',
@@ -29863,14 +29859,10 @@ export const redemptionResponseSchema = {
         },
         status: {
           type: 'string',
-          enum: ['open', 'completed', 'cancelled'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         idempotency_key: {
           type: 'string',
-        },
-        pricing_status: {
-          type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
         },
         estimated_nav_record_id: {
           anyOf: [
@@ -31466,7 +31458,7 @@ export const redemptionListResponseSchema = {
       required: [
         'id',
         'request_origin',
-        'pricing_status',
+        'status',
         'protocol_state',
         'share_amount_raw',
         'pending_shares_raw',
@@ -31496,9 +31488,9 @@ export const redemptionListResponseSchema = {
             },
           ],
         },
-        pricing_status: {
+        status: {
           type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         protocol_state: {
           type: 'string',
@@ -31629,7 +31621,6 @@ export const redemptionListResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
         priced_at: { type: ['string', 'null'] },
         nav_record_id: { type: ['integer', 'null'] },
         nav_version: { type: ['integer', 'null'] },
@@ -32359,7 +32350,7 @@ export const redemptionListResponseSchema = {
                 id: 501,
                 request_origin: 'application',
                 request_effect_id: 9010,
-                pricing_status: 'priced',
+                status: 'approved',
                 protocol_state: 'pending',
                 share_amount_raw: '250000000000000000',
                 pending_shares_raw: '250000000000000000',
@@ -32423,7 +32414,6 @@ export const redemptionListResponseSchema = {
         'profile_id',
         'vault_request_origin',
         'status',
-        'pricing_status',
         'share_amount_raw',
         'pending_shares_raw',
         'claimable_assets_raw',
@@ -32436,7 +32426,12 @@ export const redemptionListResponseSchema = {
         pricing_source: { type: ['string', 'null'] },
         dealing_price_usdc_raw: { anyOf: [{ $ref: '#/$defs/RawUint256' }, { type: 'null' }] },
         priced_by_user_id: { type: ['integer', 'null'] },
-        priced_request_effect_id: { type: ['integer', 'null'] },
+        approved_at: { type: ['string', 'null'] },
+        approved_by_user_id: { type: ['integer', 'null'] },
+        denied_at: { type: ['string', 'null'] },
+        denied_by_user_id: { type: ['integer', 'null'] },
+        denial_reason: { type: ['string', 'null'] },
+        approval_preflight_evidence_id: { type: ['integer', 'null'] },
         id: {
           type: 'integer',
           format: 'int64',
@@ -32487,14 +32482,10 @@ export const redemptionListResponseSchema = {
         },
         status: {
           type: 'string',
-          enum: ['open', 'completed', 'cancelled'],
+          enum: ['pending', 'approved', 'denied', 'cancelled', 'completed'],
         },
         idempotency_key: {
           type: 'string',
-        },
-        pricing_status: {
-          type: 'string',
-          enum: ['awaiting_dealing_nav', 'priced'],
         },
         estimated_nav_record_id: {
           anyOf: [

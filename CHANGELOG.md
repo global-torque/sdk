@@ -4,6 +4,15 @@ All notable public changes are recorded here. The package follows semantic
 versioning. Before `1.0`, breaking API changes require a new minor version;
 patch releases preserve the supported API.
 
+## 0.3.0 - 2026-09-18
+
+- **Breaking:** redemption responses now require business status `pending`,
+  `approved`, `denied`, `cancelled`, or `completed`.
+- Removed redemption-only `pricing_status` and `priced_request_effect_id` from
+  generated contracts and validators.
+- Added approval/denial audit metadata while retaining independent protocol
+  state.
+
 ## 0.2.0 - 2026-09-09
 
 - Security: refresh the standalone dependency lock to patched `fast-uri`,
