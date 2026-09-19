@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createInvestSdkTransport } from '../client.js';
 import { createFetchScript, jsonResponse } from '../testing.js';
-import { createVaultResource } from './vault.js';
+import { createVaultResource, validateRedemptionResponse } from './vault.js';
 
 const position = {
   offer_id: 77,
@@ -57,6 +57,16 @@ const setup = (responses: readonly Response[]) => {
 };
 
 describe('Vault resource', () => {
+  it.each(['none', 'quarantined'] as const)(
+    'accepts redemption protocol state %s in the exact generated contract',
+    (protocolState) => {
+      const result = validateRedemptionResponse.exact({
+        redemption: { ...redemption, protocol_state: protocolState },
+      });
+      expect(result.redemption.protocol_state).toBe(protocolState);
+    },
+  );
+
   it('reads the exact raw Vault position from the canonical endpoint', async () => {
     const context = setup([jsonResponse({ position })]);
     const result = await context.resource.getPosition({ offerId: 77 });

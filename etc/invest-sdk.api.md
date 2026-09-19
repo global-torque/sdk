@@ -2769,7 +2769,7 @@ export interface RedemptionDetail {
     // (undocumented)
     readonly profile_id: number;
     // (undocumented)
-    readonly protocol_state: 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | (string & {});
+    readonly protocol_state: 'none' | 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | 'quarantined' | (string & {});
     // (undocumented)
     readonly request_controller_address?: EvmAddress;
     // (undocumented)
@@ -4058,7 +4058,7 @@ export interface VaultRedemptionLifecycle {
     // (undocumented)
     readonly pending_shares_raw: RawUint256;
     // (undocumented)
-    readonly protocol_state: 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | (string & {});
+    readonly protocol_state: 'none' | 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | 'quarantined' | (string & {});
     // (undocumented)
     readonly request_effect_id?: number | null;
     // (undocumented)

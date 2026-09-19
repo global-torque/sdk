@@ -268,7 +268,14 @@ export interface VaultRedemptionLifecycle {
   readonly request_origin: 'application' | 'chain' | (string & {});
   readonly request_effect_id?: number | null;
   readonly status: 'pending' | 'approved' | 'denied' | 'cancelled' | 'completed' | (string & {});
-  readonly protocol_state: 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | (string & {});
+  readonly protocol_state:
+    | 'none'
+    | 'unconfirmed'
+    | 'pending'
+    | 'claimable'
+    | 'claimed'
+    | 'quarantined'
+    | (string & {});
   readonly share_amount_raw: RawUint256;
   readonly pending_shares_raw: RawUint256;
   readonly claimable_shares_raw: RawUint256;
@@ -463,7 +470,14 @@ export interface RedemptionDetail {
   readonly claimable_at?: string | null;
   readonly claimed_at?: string | null;
   readonly cancelled_at?: string | null;
-  readonly protocol_state: 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | (string & {});
+  readonly protocol_state:
+    | 'none'
+    | 'unconfirmed'
+    | 'pending'
+    | 'claimable'
+    | 'claimed'
+    | 'quarantined'
+    | (string & {});
   readonly estimate_delta_raw?: RawSignedInteger | null;
   readonly created_at?: string;
   readonly updated_at?: string;
@@ -2234,7 +2248,7 @@ export const investmentDetailSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         share_amount_raw: {
           $ref: '#/$defs/RawUint256',
@@ -3500,7 +3514,7 @@ export const investmentDetailSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         estimate_delta_raw: {
           anyOf: [
@@ -4931,7 +4945,7 @@ export const investmentListResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         share_amount_raw: {
           $ref: '#/$defs/RawUint256',
@@ -6197,7 +6211,7 @@ export const investmentListResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         estimate_delta_raw: {
           anyOf: [
@@ -7637,7 +7651,7 @@ export const confirmedInvestmentListResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         share_amount_raw: {
           $ref: '#/$defs/RawUint256',
@@ -8903,7 +8917,7 @@ export const confirmedInvestmentListResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         estimate_delta_raw: {
           anyOf: [
@@ -10352,7 +10366,7 @@ export const offerInvestmentProfileListResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         share_amount_raw: {
           $ref: '#/$defs/RawUint256',
@@ -11618,7 +11632,7 @@ export const offerInvestmentProfileListResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         estimate_delta_raw: {
           anyOf: [
@@ -12990,7 +13004,7 @@ export const amountStepSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         share_amount_raw: {
           $ref: '#/$defs/RawUint256',
@@ -14256,7 +14270,7 @@ export const amountStepSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         estimate_delta_raw: {
           anyOf: [
@@ -15619,7 +15633,7 @@ export const signatureStepSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         share_amount_raw: {
           $ref: '#/$defs/RawUint256',
@@ -16885,7 +16899,7 @@ export const signatureStepSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         estimate_delta_raw: {
           anyOf: [
@@ -18266,7 +18280,7 @@ export const reviewStepResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         share_amount_raw: {
           $ref: '#/$defs/RawUint256',
@@ -19532,7 +19546,7 @@ export const reviewStepResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         estimate_delta_raw: {
           anyOf: [
@@ -20878,7 +20892,7 @@ export const emptyResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         share_amount_raw: {
           $ref: '#/$defs/RawUint256',
@@ -22144,7 +22158,7 @@ export const emptyResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         estimate_delta_raw: {
           anyOf: [
@@ -23636,7 +23650,7 @@ export const positionResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         share_amount_raw: {
           $ref: '#/$defs/RawUint256',
@@ -24902,7 +24916,7 @@ export const positionResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         estimate_delta_raw: {
           anyOf: [
@@ -26255,7 +26269,7 @@ export const redemptionCommandResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         share_amount_raw: {
           $ref: '#/$defs/RawUint256',
@@ -27521,7 +27535,7 @@ export const redemptionCommandResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         estimate_delta_raw: {
           anyOf: [
@@ -28871,7 +28885,7 @@ export const redemptionResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         share_amount_raw: {
           $ref: '#/$defs/RawUint256',
@@ -30137,7 +30151,7 @@ export const redemptionResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         estimate_delta_raw: {
           anyOf: [
@@ -31494,7 +31508,7 @@ export const redemptionListResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         share_amount_raw: {
           $ref: '#/$defs/RawUint256',
@@ -32760,7 +32774,7 @@ export const redemptionListResponseSchema = {
         },
         protocol_state: {
           type: 'string',
-          enum: ['unconfirmed', 'pending', 'claimable', 'claimed'],
+          enum: ['none', 'unconfirmed', 'pending', 'claimable', 'claimed', 'quarantined'],
         },
         estimate_delta_raw: {
           anyOf: [
