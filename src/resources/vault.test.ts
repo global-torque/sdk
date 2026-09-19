@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createInvestSdkTransport } from '../client.js';
 import { createFetchScript, jsonResponse } from '../testing.js';
-import { createVaultResource } from './vault.js';
+import { createVaultResource, validateRedemptionResponse } from './vault.js';
 
 const position = {
   offer_id: 77,
@@ -30,8 +30,7 @@ const redemption = {
   offer_id: 77,
   profile_id: 42,
   vault_request_origin: 'application',
-  status: 'open',
-  pricing_status: 'awaiting_dealing_nav',
+  status: 'pending',
   share_amount_raw: '250000000000000000',
   pending_shares_raw: '0',
   claimable_assets_raw: '0',
@@ -58,6 +57,16 @@ const setup = (responses: readonly Response[]) => {
 };
 
 describe('Vault resource', () => {
+  it.each(['none', 'quarantined'] as const)(
+    'accepts redemption protocol state %s in the exact generated contract',
+    (protocolState) => {
+      const result = validateRedemptionResponse.exact({
+        redemption: { ...redemption, protocol_state: protocolState },
+      });
+      expect(result.redemption.protocol_state).toBe(protocolState);
+    },
+  );
+
   it('reads the exact raw Vault position from the canonical endpoint', async () => {
     const context = setup([jsonResponse({ position })]);
     const result = await context.resource.getPosition({ offerId: 77 });
@@ -75,7 +84,6 @@ describe('Vault resource', () => {
       pricing_source: 'manager_dealing_price',
       dealing_price_usdc_raw: '25000000',
       priced_by_user_id: 1,
-      priced_request_effect_id: 501,
       delta_from_estimate_raw: null,
     };
     const context = setup([
@@ -89,7 +97,6 @@ describe('Vault resource', () => {
                 ...redemption,
                 request_origin: 'application',
                 estimate: null,
-                pricing_status: 'priced',
                 final: quote,
                 operations: {},
               },
