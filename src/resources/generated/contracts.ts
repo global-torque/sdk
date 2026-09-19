@@ -269,13 +269,7 @@ export interface VaultRedemptionLifecycle {
   readonly request_effect_id?: number | null;
   readonly status: 'pending' | 'approved' | 'denied' | 'cancelled' | 'completed' | (string & {});
   readonly protocol_state:
-    | 'none'
-    | 'unconfirmed'
-    | 'pending'
-    | 'claimable'
-    | 'claimed'
-    | 'quarantined'
-    | (string & {});
+    'none' | 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | 'quarantined' | (string & {});
   readonly share_amount_raw: RawUint256;
   readonly pending_shares_raw: RawUint256;
   readonly claimable_shares_raw: RawUint256;
@@ -471,13 +465,7 @@ export interface RedemptionDetail {
   readonly claimed_at?: string | null;
   readonly cancelled_at?: string | null;
   readonly protocol_state:
-    | 'none'
-    | 'unconfirmed'
-    | 'pending'
-    | 'claimable'
-    | 'claimed'
-    | 'quarantined'
-    | (string & {});
+    'none' | 'unconfirmed' | 'pending' | 'claimable' | 'claimed' | 'quarantined' | (string & {});
   readonly estimate_delta_raw?: RawSignedInteger | null;
   readonly created_at?: string;
   readonly updated_at?: string;

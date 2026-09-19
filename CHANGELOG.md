@@ -4,7 +4,7 @@ All notable public changes are recorded here. The package follows semantic
 versioning. Before `1.0`, breaking API changes require a new minor version;
 patch releases preserve the supported API.
 
-## 0.3.0 - 2026-09-18
+## 0.3.1 - 2026-09-19
 
 - **Breaking:** redemption responses now require business status `pending`,
   `approved`, `denied`, `cancelled`, or `completed`.
