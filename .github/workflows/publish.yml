@@ -65,16 +65,16 @@ jobs:
         run: |
           test -n "${NODE_AUTH_TOKEN}"
           publish_tag=$(node -p "require('./package.json').publishConfig.tag")
-          npm publish release/*.tgz --access public --provenance --tag "${publish_tag}"
+          npm publish ./release/*.tgz --access public --provenance --tag "${publish_tag}"
       - name: Publish exact tarball with trusted publishing
         if: ${{ !inputs.bootstrap }}
         run: |
           publish_tag=$(node -p "require('./package.json').publishConfig.tag")
-          npm publish release/*.tgz --access public --provenance --tag "${publish_tag}"
+          npm publish ./release/*.tgz --access public --provenance --tag "${publish_tag}"
       - name: Verify registry bytes
         shell: bash
         run: |
           package_version=$(node -p "require('./package.json').version")
           mkdir registry
           npm pack "@global-torque/sdk@${package_version}" --pack-destination registry
-          cmp release/*.tgz registry/*.tgz
+          cmp ./release/*.tgz ./registry/*.tgz

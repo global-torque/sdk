@@ -36,13 +36,13 @@ jobs:
       - run: pnpm run build
       - run: pnpm exec api-extractor run --verbose
       - run: pnpm run release:artifact -- --skip-build --output-dir release
-      - run: node scripts/verify-package.mjs --archive release/*.tgz
-      - run: node scripts/verify-packed.mjs --archive release/*.tgz
+      - run: node scripts/verify-package.mjs --archive ./release/*.tgz
+      - run: node scripts/verify-packed.mjs --archive ./release/*.tgz
       - run: pnpm run release:verify -- --directory release --tag "${GITHUB_REF_NAME}"
       - name: Attest npm tarball
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
-          subject-path: release/*.tgz
+          subject-path: ./release/*.tgz
       - name: Identify exact npm provenance subject
         id: npm_subject
         shell: bash
