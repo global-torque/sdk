@@ -162,11 +162,96 @@ export type EvmAddress = string;
 /** Generated from the pinned backend contract. @public */
 export type RawUint256 = string;
 
+/** Vault-level liquidity protection projection. @public */
+export interface VaultQuarantineIncident {
+  readonly id: number;
+  readonly shortfall_assets_raw: RawUint256;
+  readonly redemption_id: number | null;
+  readonly controller_address: EvmAddress | null;
+  readonly affected_effect_id: number | null;
+  readonly finalized_block_number: number | string;
+  readonly finalized_block_hash: string;
+  readonly detected_at: string;
+  readonly recovery_state: 'active' | 'recovered' | (string & {});
+  readonly recovery_condition: string;
+}
+
+/** Vault-level protocol safety snapshot. @public */
+export interface VaultQuarantineSnapshot {
+  readonly active: boolean;
+  readonly active_incidents: readonly VaultQuarantineIncident[];
+  readonly total_shortfall_assets_raw: RawUint256;
+  readonly recovery_state: 'active' | 'clear' | (string & {});
+  readonly recovery_condition: string;
+}
+
+const vaultQuarantineIncidentSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'id',
+    'shortfall_assets_raw',
+    'redemption_id',
+    'controller_address',
+    'affected_effect_id',
+    'finalized_block_number',
+    'finalized_block_hash',
+    'detected_at',
+    'recovery_state',
+    'recovery_condition',
+  ],
+  properties: {
+    id: { type: 'integer' },
+    shortfall_assets_raw: { $ref: '#/$defs/RawUint256' },
+    redemption_id: { type: ['integer', 'null'] },
+    controller_address: { anyOf: [{ $ref: '#/$defs/EvmAddress' }, { type: 'null' }] },
+    affected_effect_id: { type: ['integer', 'null'] },
+    finalized_block_number: { anyOf: [{ type: 'integer' }, { type: 'string' }] },
+    finalized_block_hash: { type: 'string' },
+    detected_at: { type: 'string', format: 'date-time' },
+    recovery_state: { type: 'string', enum: ['active', 'recovered'] },
+    recovery_condition: { type: 'string' },
+  },
+} as const;
+
+const vaultQuarantineSnapshotSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'active',
+    'active_incidents',
+    'total_shortfall_assets_raw',
+    'recovery_state',
+    'recovery_condition',
+  ],
+  properties: {
+    active: { type: 'boolean' },
+    active_incidents: {
+      type: 'array',
+      items: { $ref: '#/$defs/VaultQuarantineIncident' },
+    },
+    total_shortfall_assets_raw: { $ref: '#/$defs/RawUint256' },
+    recovery_state: { type: 'string', enum: ['active', 'clear'] },
+    recovery_condition: { type: 'string' },
+  },
+} as const;
+
+const vaultProtocolSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    quarantine: { $ref: '#/$defs/VaultQuarantineSnapshot' },
+  },
+} as const;
+
 /** Generated from the pinned backend contract. @public */
 export interface VaultLifecycle {
   readonly deployment: VaultDeployment;
   readonly deposit: VaultDeposit | null;
   readonly position: VaultPositionBalance;
+  readonly protocol?: {
+    readonly quarantine?: VaultQuarantineSnapshot;
+  };
   readonly redemptions: readonly VaultRedemptionLifecycle[];
 }
 
@@ -1697,6 +1782,8 @@ export const investmentDetailSchema = {
       description: 'Lossless base-10 uint256 JSON string.',
       example: '1000000000000000000',
     },
+    VaultQuarantineIncident: vaultQuarantineIncidentSchema,
+    VaultQuarantineSnapshot: vaultQuarantineSnapshotSchema,
     VaultLifecycle: {
       type: 'object',
       additionalProperties: false,
@@ -1723,6 +1810,7 @@ export const investmentDetailSchema = {
         position: {
           $ref: '#/$defs/VaultPositionBalance',
         },
+        protocol: vaultProtocolSchema,
         redemptions: {
           type: 'array',
           items: {
@@ -4394,6 +4482,8 @@ export const investmentListResponseSchema = {
       description: 'Lossless base-10 uint256 JSON string.',
       example: '1000000000000000000',
     },
+    VaultQuarantineIncident: vaultQuarantineIncidentSchema,
+    VaultQuarantineSnapshot: vaultQuarantineSnapshotSchema,
     VaultLifecycle: {
       type: 'object',
       additionalProperties: false,
@@ -4420,6 +4510,7 @@ export const investmentListResponseSchema = {
         position: {
           $ref: '#/$defs/VaultPositionBalance',
         },
+        protocol: vaultProtocolSchema,
         redemptions: {
           type: 'array',
           items: {
@@ -7100,6 +7191,8 @@ export const confirmedInvestmentListResponseSchema = {
       description: 'Lossless base-10 uint256 JSON string.',
       example: '1000000000000000000',
     },
+    VaultQuarantineIncident: vaultQuarantineIncidentSchema,
+    VaultQuarantineSnapshot: vaultQuarantineSnapshotSchema,
     VaultLifecycle: {
       type: 'object',
       additionalProperties: false,
@@ -7126,6 +7219,7 @@ export const confirmedInvestmentListResponseSchema = {
         position: {
           $ref: '#/$defs/VaultPositionBalance',
         },
+        protocol: vaultProtocolSchema,
         redemptions: {
           type: 'array',
           items: {
@@ -9815,6 +9909,8 @@ export const offerInvestmentProfileListResponseSchema = {
       description: 'Lossless base-10 uint256 JSON string.',
       example: '1000000000000000000',
     },
+    VaultQuarantineIncident: vaultQuarantineIncidentSchema,
+    VaultQuarantineSnapshot: vaultQuarantineSnapshotSchema,
     VaultLifecycle: {
       type: 'object',
       additionalProperties: false,
@@ -9841,6 +9937,7 @@ export const offerInvestmentProfileListResponseSchema = {
         position: {
           $ref: '#/$defs/VaultPositionBalance',
         },
+        protocol: vaultProtocolSchema,
         redemptions: {
           type: 'array',
           items: {
@@ -12453,6 +12550,8 @@ export const amountStepSchema = {
       description: 'Lossless base-10 uint256 JSON string.',
       example: '1000000000000000000',
     },
+    VaultQuarantineIncident: vaultQuarantineIncidentSchema,
+    VaultQuarantineSnapshot: vaultQuarantineSnapshotSchema,
     VaultLifecycle: {
       type: 'object',
       additionalProperties: false,
@@ -12479,6 +12578,7 @@ export const amountStepSchema = {
         position: {
           $ref: '#/$defs/VaultPositionBalance',
         },
+        protocol: vaultProtocolSchema,
         redemptions: {
           type: 'array',
           items: {
@@ -15082,6 +15182,8 @@ export const signatureStepSchema = {
       description: 'Lossless base-10 uint256 JSON string.',
       example: '1000000000000000000',
     },
+    VaultQuarantineIncident: vaultQuarantineIncidentSchema,
+    VaultQuarantineSnapshot: vaultQuarantineSnapshotSchema,
     VaultLifecycle: {
       type: 'object',
       additionalProperties: false,
@@ -15108,6 +15210,7 @@ export const signatureStepSchema = {
         position: {
           $ref: '#/$defs/VaultPositionBalance',
         },
+        protocol: vaultProtocolSchema,
         redemptions: {
           type: 'array',
           items: {
@@ -17729,6 +17832,8 @@ export const reviewStepResponseSchema = {
       description: 'Lossless base-10 uint256 JSON string.',
       example: '1000000000000000000',
     },
+    VaultQuarantineIncident: vaultQuarantineIncidentSchema,
+    VaultQuarantineSnapshot: vaultQuarantineSnapshotSchema,
     VaultLifecycle: {
       type: 'object',
       additionalProperties: false,
@@ -17755,6 +17860,7 @@ export const reviewStepResponseSchema = {
         position: {
           $ref: '#/$defs/VaultPositionBalance',
         },
+        protocol: vaultProtocolSchema,
         redemptions: {
           type: 'array',
           items: {
@@ -20341,6 +20447,8 @@ export const emptyResponseSchema = {
       description: 'Lossless base-10 uint256 JSON string.',
       example: '1000000000000000000',
     },
+    VaultQuarantineIncident: vaultQuarantineIncidentSchema,
+    VaultQuarantineSnapshot: vaultQuarantineSnapshotSchema,
     VaultLifecycle: {
       type: 'object',
       additionalProperties: false,
@@ -20367,6 +20475,7 @@ export const emptyResponseSchema = {
         position: {
           $ref: '#/$defs/VaultPositionBalance',
         },
+        protocol: vaultProtocolSchema,
         redemptions: {
           type: 'array',
           items: {
@@ -23099,6 +23208,8 @@ export const positionResponseSchema = {
       description: 'Lossless base-10 uint256 JSON string.',
       example: '1000000000000000000',
     },
+    VaultQuarantineIncident: vaultQuarantineIncidentSchema,
+    VaultQuarantineSnapshot: vaultQuarantineSnapshotSchema,
     VaultLifecycle: {
       type: 'object',
       additionalProperties: false,
@@ -23125,6 +23236,7 @@ export const positionResponseSchema = {
         position: {
           $ref: '#/$defs/VaultPositionBalance',
         },
+        protocol: vaultProtocolSchema,
         redemptions: {
           type: 'array',
           items: {
@@ -25718,6 +25830,8 @@ export const redemptionCommandResponseSchema = {
       description: 'Lossless base-10 uint256 JSON string.',
       example: '1000000000000000000',
     },
+    VaultQuarantineIncident: vaultQuarantineIncidentSchema,
+    VaultQuarantineSnapshot: vaultQuarantineSnapshotSchema,
     VaultLifecycle: {
       type: 'object',
       additionalProperties: false,
@@ -25744,6 +25858,7 @@ export const redemptionCommandResponseSchema = {
         position: {
           $ref: '#/$defs/VaultPositionBalance',
         },
+        protocol: vaultProtocolSchema,
         redemptions: {
           type: 'array',
           items: {
@@ -28334,6 +28449,8 @@ export const redemptionResponseSchema = {
       description: 'Lossless base-10 uint256 JSON string.',
       example: '1000000000000000000',
     },
+    VaultQuarantineIncident: vaultQuarantineIncidentSchema,
+    VaultQuarantineSnapshot: vaultQuarantineSnapshotSchema,
     VaultLifecycle: {
       type: 'object',
       additionalProperties: false,
@@ -28360,6 +28477,7 @@ export const redemptionResponseSchema = {
         position: {
           $ref: '#/$defs/VaultPositionBalance',
         },
+        protocol: vaultProtocolSchema,
         redemptions: {
           type: 'array',
           items: {
@@ -30957,6 +31075,8 @@ export const redemptionListResponseSchema = {
       description: 'Lossless base-10 uint256 JSON string.',
       example: '1000000000000000000',
     },
+    VaultQuarantineIncident: vaultQuarantineIncidentSchema,
+    VaultQuarantineSnapshot: vaultQuarantineSnapshotSchema,
     VaultLifecycle: {
       type: 'object',
       additionalProperties: false,
@@ -30983,6 +31103,7 @@ export const redemptionListResponseSchema = {
         position: {
           $ref: '#/$defs/VaultPositionBalance',
         },
+        protocol: vaultProtocolSchema,
         redemptions: {
           type: 'array',
           items: {

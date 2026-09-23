@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createInvestSdkTransport } from '../client.js';
 import { SdkResponseValidationError } from '../errors.js';
 import { createFetchScript, jsonResponse } from '../testing.js';
-import { createInvestmentsResource } from './investments.js';
+import { createInvestmentsResource, validateInvestmentDetail } from './investments.js';
 
 const pinnedInvestment = {
   id: 123,
@@ -106,6 +106,76 @@ const requestBody = (body: BodyInit | null | undefined) => {
 };
 
 describe('investments resource', () => {
+  it('validates vault quarantine snapshots and rejects malformed incidents', () => {
+    const quarantine = {
+      active: true,
+      active_incidents: [
+        {
+          id: 9,
+          shortfall_assets_raw: '12',
+          redemption_id: null,
+          controller_address: null,
+          affected_effect_id: null,
+          finalized_block_number: 42,
+          finalized_block_hash: '0xabc',
+          detected_at: '2026-09-21T10:00:00Z',
+          recovery_state: 'active',
+          recovery_condition: 'finalized_snapshot_and_full_coverage_required',
+        },
+      ],
+      total_shortfall_assets_raw: '12',
+      recovery_state: 'active',
+      recovery_condition: 'finalized_snapshot_and_full_coverage_required',
+    } as const;
+    const investment = {
+      ...pinnedInvestment,
+      vault: {
+        deployment: {
+          contract_id: 1,
+          status: 'active',
+          chain: 'base',
+          address: `0x${'1'.repeat(40)}`,
+          asset: { symbol: 'USDC', address: `0x${'2'.repeat(40)}`, decimals: 6 },
+          share: { symbol: 'SHARE', address: `0x${'3'.repeat(40)}`, decimals: 18 },
+        },
+        deposit: null,
+        position: {
+          share_balance_raw: '0',
+          historical_claimed_shares_raw: '0',
+          available_to_redeem_shares_raw: '0',
+        },
+        protocol: { quarantine },
+        redemptions: [],
+      },
+    };
+    expect(validateInvestmentDetail(investment).vault?.protocol?.quarantine).toEqual(quarantine);
+    expect(() =>
+      validateInvestmentDetail({
+        ...investment,
+        vault: {
+          ...investment.vault,
+          protocol: {
+            quarantine: {
+              ...quarantine,
+              active_incidents: [
+                { ...quarantine.active_incidents[0], recovery_condition: undefined },
+              ],
+            },
+          },
+        },
+      }),
+    ).toThrow(/does not satisfy its compatible contract/u);
+    expect(() =>
+      validateInvestmentDetail({
+        ...investment,
+        vault: {
+          ...investment.vault,
+          protocol: { quarantine: { ...quarantine, total_shortfall_assets_raw: '-1' } },
+        },
+      }),
+    ).toThrow(/does not satisfy its compatible contract/u);
+  });
+
   it('accepts pending shares in create, detail, and list responses', async () => {
     const context = setup([
       jsonResponse(pendingSharesInvestment),

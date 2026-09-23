@@ -1,7 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import { createInvestSdkTransport } from '../client.js';
 import { createFetchScript, jsonResponse } from '../testing.js';
-import { createVaultResource, validateRedemptionResponse } from './vault.js';
+import {
+  createVaultResource,
+  validatePositionResponse,
+  validateRedemptionResponse,
+} from './vault.js';
+
+const quarantine = {
+  active: true,
+  active_incidents: [
+    {
+      id: 9,
+      shortfall_assets_raw: '12',
+      redemption_id: null,
+      controller_address: null,
+      affected_effect_id: null,
+      finalized_block_number: 42,
+      finalized_block_hash: '0xabc',
+      detected_at: '2026-09-21T10:00:00Z',
+      recovery_state: 'active',
+      recovery_condition: 'finalized_snapshot_and_full_coverage_required',
+    },
+  ],
+  total_shortfall_assets_raw: '12',
+  recovery_state: 'active',
+  recovery_condition: 'finalized_snapshot_and_full_coverage_required',
+} as const;
 
 const position = {
   offer_id: 77,
@@ -21,6 +46,7 @@ const position = {
       historical_claimed_shares_raw: '250000000000000000',
       available_to_redeem_shares_raw: '250000000000000000',
     },
+    protocol: { quarantine },
     redemptions: [],
   },
 };
@@ -72,10 +98,32 @@ describe('Vault resource', () => {
     const result = await context.resource.getPosition({ offerId: 77 });
 
     expect(result.data.position.vault.position.share_balance_raw).toBe('250000000000000000');
+    expect(result.data.position.vault.protocol?.quarantine).toEqual(quarantine);
     expect(context.requests[0]?.url).toBe(
       'https://investment.example.test/v1.0/auth/positions?offer_id=77',
     );
     context.transport.dispose();
+  });
+
+  it('rejects an invalid quarantine incident on a Vault position', () => {
+    expect(() =>
+      validatePositionResponse({
+        position: {
+          ...position,
+          vault: {
+            ...position.vault,
+            protocol: {
+              quarantine: {
+                ...quarantine,
+                active_incidents: [
+                  { ...quarantine.active_incidents[0], shortfall_assets_raw: '-1' },
+                ],
+              },
+            },
+          },
+        },
+      }),
+    ).toThrow(/does not satisfy its compatible contract/u);
   });
 
   it('reads a manager-priced redemption without an estimate or legacy NAV fields', async () => {
