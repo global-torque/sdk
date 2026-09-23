@@ -3998,10 +3998,6 @@ export interface VaultLifecycle {
     // (undocumented)
     readonly position: VaultPositionBalance;
     // (undocumented)
-    readonly protocol?: {
-        readonly quarantine?: VaultQuarantineSnapshot;
-    };
-    // (undocumented)
     readonly redemptions: readonly VaultRedemptionLifecycle[];
 }
 
@@ -4029,44 +4025,6 @@ export interface VaultPositionBalance {
     readonly historical_claimed_shares_raw: RawUint256;
     // (undocumented)
     readonly share_balance_raw: RawUint256;
-}
-
-// @public
-export interface VaultQuarantineIncident {
-    // (undocumented)
-    readonly affected_effect_id: number | null;
-    // (undocumented)
-    readonly controller_address: EvmAddress | null;
-    // (undocumented)
-    readonly detected_at: string;
-    // (undocumented)
-    readonly finalized_block_hash: string;
-    // (undocumented)
-    readonly finalized_block_number: number | string;
-    // (undocumented)
-    readonly id: number;
-    // (undocumented)
-    readonly recovery_condition: string;
-    // (undocumented)
-    readonly recovery_state: 'active' | 'recovered' | (string & {});
-    // (undocumented)
-    readonly redemption_id: number | null;
-    // (undocumented)
-    readonly shortfall_assets_raw: RawUint256;
-}
-
-// @public
-export interface VaultQuarantineSnapshot {
-    // (undocumented)
-    readonly active: boolean;
-    // (undocumented)
-    readonly active_incidents: readonly VaultQuarantineIncident[];
-    // (undocumented)
-    readonly recovery_condition: string;
-    // (undocumented)
-    readonly recovery_state: 'active' | 'clear' | (string & {});
-    // (undocumented)
-    readonly total_shortfall_assets_raw: RawUint256;
 }
 
 // @public (undocumented)
