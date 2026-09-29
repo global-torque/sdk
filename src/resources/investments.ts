@@ -64,6 +64,11 @@ export interface ListInvestmentsByOfferInput {
 export interface CreateInvestmentInput {
   offerSlug: string;
   profileId: number;
+  /**
+   * Caller-generated key sent as `Idempotency-Key`. Repeating a create with the
+   * same key returns the investment created earlier.
+   */
+  idempotencyKey?: string;
   request?: InvestmentsResourceRequestOptions;
 }
 
@@ -333,6 +338,7 @@ export const createInvestmentsResource = (client: SdkServiceClient): Investments
         {},
         {
           ...mutationRequest(input.request),
+          ...(input.idempotencyKey === undefined ? {} : { idempotencyKey: input.idempotencyKey }),
           operationId: 'InvestmentCreate',
           responseMode: 'json',
           responseValidator: validateInvestmentDetail,

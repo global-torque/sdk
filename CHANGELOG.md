@@ -4,6 +4,13 @@ All notable public changes are recorded here. The package follows semantic
 versioning. Before `1.0`, breaking API changes require a new minor version;
 patch releases preserve the supported API.
 
+## Unreleased
+
+- Added optional `idempotencyKey` to `createInvestment`. It is sent as the
+  `Idempotency-Key` header; the investment service returns the investment
+  created earlier when a create repeats the same key. Other investment
+  mutations still do not accept a key, and mutations are still not retried.
+
 ## 0.3.1 - 2026-09-19
 
 - **Breaking:** redemption responses now require business status `pending`,
