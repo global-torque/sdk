@@ -4,7 +4,7 @@ All notable public changes are recorded here. The package follows semantic
 versioning. Before `1.0`, breaking API changes require a new minor version;
 patch releases preserve the supported API.
 
-## Unreleased
+## 0.3.2 - 2026-09-30
 
 - Added optional `idempotencyKey` to `createInvestment`. It is sent as the
   `Idempotency-Key` header; the investment service returns the investment
