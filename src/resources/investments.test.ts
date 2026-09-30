@@ -276,6 +276,21 @@ describe('investments resource', () => {
     context.transport.dispose();
   });
 
+  it('sends the caller idempotency key on create', async () => {
+    const context = setup([jsonResponse(pinnedInvestment)]);
+
+    await context.resource.createInvestment({
+      offerSlug: 'oncolyze',
+      profileId: 42,
+      idempotencyKey: 'investment-create-1',
+    });
+
+    expect(context.requests.map(({ headers }) => headers.get('idempotency-key'))).toEqual([
+      'investment-create-1',
+    ]);
+    context.transport.dispose();
+  });
+
   it('rejects invalid path, pagination, amount, funding, and mutation inputs before transport', () => {
     const context = setup([]);
 

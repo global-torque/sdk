@@ -347,6 +347,7 @@ export interface CreateIncomingRequestInput {
 
 // @public (undocumented)
 export interface CreateInvestmentInput {
+    idempotencyKey?: string;
     // (undocumented)
     offerSlug: string;
     // (undocumented)
