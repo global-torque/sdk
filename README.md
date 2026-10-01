@@ -130,6 +130,30 @@ Use `authorizationAuth({ getAuthorization })` when a service needs a typed
 Authorization scheme other than Bearer. Generic request headers still cannot
 set `Authorization`, so credential ownership remains explicit and origin-bound.
 
+## Idempotency keys
+
+`createIdempotencyKeys` keeps one in-memory key per action scope and never
+retries the action itself. The scope must include everything that makes two
+attempts the same action, such as the offer slug and the profile ID:
+
+```ts
+import { createIdempotencyKeys } from '@global-torque/sdk';
+import { createInvestmentsResource } from '@global-torque/sdk/resources/investments';
+
+const investments = createInvestmentsResource(transport.createServiceClient('investments'));
+const investKeys = createIdempotencyKeys();
+
+const investment = await investKeys.run(`${slug}:${profileId}`, (idempotencyKey) =>
+  investments.createInvestment({ offerSlug: slug, profileId, idempotencyKey }),
+);
+```
+
+A rejected action keeps its key, so a retry or a repeated click for the same
+scope sends the same `idempotencyKey`. Once an action resolves, the key is
+dropped and the next run for that scope starts a new action with a new key.
+Call `forget(scope)` when the host learns that the action completed another
+way, for example through a reconciliation read after a lost response.
+
 ## Browser wallet subpaths
 
 Wallet integrations are separate subpaths so transport-only consumers do not
@@ -253,7 +277,7 @@ const filer = createFilerResource(transport.createServiceClient('filer'), {
 
 The package uses explicit exports only:
 
-- root transport, auth, errors, pagination, and types;
+- root transport, auth, errors, idempotency, pagination, and types;
 - `./auth`, `./errors`, `./pagination`, `./testing`, and `./types`;
 - `./resources/auth`, `./resources/distributions`, `./resources/evm`,
   `./resources/filer`, `./resources/forms`, `./resources/fund-manager`,
