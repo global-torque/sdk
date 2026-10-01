@@ -4,6 +4,14 @@ All notable public changes are recorded here. The package follows semantic
 versioning. Before `1.0`, breaking API changes require a new minor version;
 patch releases preserve the supported API.
 
+## Unreleased
+
+- Added `createIdempotencyKeys`, a root export that keeps one in-memory
+  idempotency key per caller-defined action scope. The key is reused while
+  actions for the scope reject or overlap and is dropped once one resolves;
+  `forget(scope)` drops it when the action completed another way. The helper
+  never retries and never persists keys.
+
 ## 0.3.2 - 2026-09-30
 
 - Added optional `idempotencyKey` to `createInvestment`. It is sent as the

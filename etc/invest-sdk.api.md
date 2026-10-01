@@ -337,6 +337,9 @@ export const createFormsResource: (client: SdkServiceClient) => FormsResource;
 // @public
 export const createFundManagerResource: (client: SdkServiceClient) => FundManagerResource;
 
+// @public
+export const createIdempotencyKeys: () => SdkIdempotencyKeys;
+
 // @public (undocumented)
 export interface CreateIncomingRequestInput {
     // (undocumented)
@@ -3065,6 +3068,12 @@ export interface SdkHttpErrorContext extends SdkErrorContext {
 
 // @public (undocumented)
 export type SdkHttpMethod = 'GET' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+// @public
+export interface SdkIdempotencyKeys {
+    forget(scope: string): void;
+    run<T>(scope: string, action: (idempotencyKey: string) => Promise<T>): Promise<T>;
+}
 
 // @public
 export interface SdkKeylessServiceClient extends SdkServiceClient {
