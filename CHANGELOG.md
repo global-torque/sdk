@@ -4,7 +4,7 @@ All notable public changes are recorded here. The package follows semantic
 versioning. Before `1.0`, breaking API changes require a new minor version;
 patch releases preserve the supported API.
 
-## Unreleased
+## 0.3.3 - 2026-10-01
 
 - Added `createIdempotencyKeys`, a root export that keeps one in-memory
   idempotency key per caller-defined action scope. The key is reused while
