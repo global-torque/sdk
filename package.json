@@ -1,7 +1,7 @@
 {
   "name": "@global-torque/sdk",
   "private": false,
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "Framework-free investment resources, transport, and injected EVM wallet building blocks.",
   "keywords": [
     "eip-7702",
@@ -56,7 +56,7 @@
     "vitest": "4.1.11"
   },
   "dependencies": {
-    "@alchemy/wallet-apis": "^5.0.6",
+    "@alchemy/wallet-apis": "^5.2.7",
     "@turnkey/crypto": "^2.10.0",
     "@turnkey/sdk-browser": "^6.1.1",
     "@turnkey/viem": "0.14.31",

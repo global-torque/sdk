@@ -4,6 +4,16 @@ All notable public changes are recorded here. The package follows semantic
 versioning. Before `1.0`, breaking API changes require a new minor version;
 patch releases preserve the supported API.
 
+## 0.4.0 - 2026-10-02
+
+- **Breaking:** EIP-7702 activation now requests Alchemy Modular Account v2
+  `v1.1.0` at `0x77021100bD87b7008E5E1989d0eB38555d0d0000` and sends that
+  explicit delegation address through the wallet API serializer.
+- Upgraded `@alchemy/wallet-apis` to `^5.2.7`, which supports the versioned
+  delegation selector required for v1.1.0.
+- Existing v1.0.0 delegations remain outside the supported activation contract;
+  the SDK rejects them as unexpected on-chain delegation.
+
 ## 0.3.3 - 2026-10-01
 
 - Added `createIdempotencyKeys`, a root export that keeps one in-memory

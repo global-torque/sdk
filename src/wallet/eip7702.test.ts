@@ -224,6 +224,67 @@ describe('assertSafeEip7702PreparedCalls', () => {
 });
 
 describe('createEip7702Activator', () => {
+  it('serializes the v1.1 delegation through the Alchemy wallet API request', async () => {
+    const requests: { method: string; params: unknown[] }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = input instanceof Request ? input : new Request(input, init);
+        const body = JSON.parse(await request.text()) as {
+          id: number;
+          method: string;
+          params: unknown[];
+        };
+        requests.push(body);
+
+        if (body.method === 'eth_getCode') {
+          return new Response(JSON.stringify({ jsonrpc: '2.0', id: body.id, result: '0x' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+        return new Response(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: body.id,
+            error: { code: -32_600, message: 'intercepted wallet request' },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }),
+    );
+
+    try {
+      const activator = createAlchemyEip7702Activator({
+        apiKey: 'key',
+        policyId: '00000000-0000-4000-8000-000000000000',
+        rpcUrl: 'https://rpc.example',
+      });
+
+      await expect(
+        activator.ensureDelegation({
+          signer: createSigner(),
+          expectedWalletAddress: walletAddress,
+        }),
+      ).rejects.toThrow('intercepted wallet request');
+
+      const prepareRequest = requests.find(({ method }) => method === 'wallet_prepareCalls');
+      expect(prepareRequest).toBeDefined();
+      expect(prepareRequest?.params[0]).toMatchObject({
+        calls: [],
+        capabilities: {
+          eip7702Auth: {
+            account: walletAddress,
+            delegation: '0x77021100bD87b7008E5E1989d0eB38555d0d0000',
+          },
+          paymasterService: { policyId: '00000000-0000-4000-8000-000000000000' },
+        },
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('validates explicit Alchemy configuration without reading application environment', () => {
     expect(() => createAlchemyEip7702Activator({ apiKey: '', policyId: 'policy' })).toThrow(
       'Wallet API key',
@@ -310,6 +371,22 @@ describe('createEip7702Activator', () => {
     expect(createProvider).not.toHaveBeenCalled();
   });
 
+  it('rejects the previous Alchemy delegation before signing', async () => {
+    const createProvider = vi.fn();
+    const activator = createEip7702Activator({
+      inspectBytecode: vi.fn(async () => '0xef010069007702764179f14f51cdce752f4f775d74e139'),
+      createProvider,
+    });
+
+    await expect(
+      activator.ensureDelegation({
+        signer: createSigner(),
+        expectedWalletAddress: walletAddress,
+      }),
+    ).rejects.toThrow('delegated to an unsupported contract');
+    expect(createProvider).not.toHaveBeenCalled();
+  });
+
   it('submits once and succeeds only after exact post-confirmation inspection', async () => {
     const provider = createProvider();
     const store = createMemoryStore();
@@ -340,6 +417,16 @@ describe('createEip7702Activator', () => {
       transactionHash: '0xtransaction',
     });
     expect(provider.prepareCalls).toHaveBeenCalledTimes(1);
+    expect(provider.prepareCalls).toHaveBeenCalledWith({
+      account: walletAddress,
+      calls: [],
+      capabilities: {
+        eip7702Auth: {
+          account: walletAddress,
+          delegation: '0x77021100bD87b7008E5E1989d0eB38555d0d0000',
+        },
+      },
+    });
     expect(provider.signPreparedCalls).toHaveBeenCalledTimes(1);
     expect(provider.sendPreparedCalls).toHaveBeenCalledTimes(1);
     expect(store.write).toHaveBeenCalledWith({
@@ -349,6 +436,34 @@ describe('createEip7702Activator', () => {
       submittedAt: '2026-08-07T12:00:00.000Z',
     });
     expect(onSubmitted).toHaveBeenCalledWith('call-1');
+  });
+
+  it('preserves an explicitly configured delegation selector', async () => {
+    const provider = createProvider();
+    const activator = createEip7702Activator({
+      delegationName: 'explicit-delegation',
+      inspectBytecode: vi
+        .fn()
+        .mockResolvedValueOnce('0x')
+        .mockResolvedValueOnce(ALCHEMY_MODULAR_ACCOUNT_V2_DELEGATION),
+      createProvider: vi.fn(() => provider),
+    });
+
+    await activator.ensureDelegation({
+      signer: createSigner(),
+      expectedWalletAddress: walletAddress,
+    });
+
+    expect(provider.prepareCalls).toHaveBeenCalledWith(
+      expect.objectContaining({
+        capabilities: {
+          eip7702Auth: {
+            account: walletAddress,
+            delegation: 'explicit-delegation',
+          },
+        },
+      }),
+    );
   });
 
   it('refuses unsafe preparation before sign or send', async () => {
