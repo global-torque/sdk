@@ -41,7 +41,7 @@ export interface AccreditedInvestorRequestInput {
 }
 
 // @alpha (undocumented)
-export const ALCHEMY_MODULAR_ACCOUNT_V2_ADDRESS = "0x69007702764179f14f51cdce752f4f775d74e139";
+export const ALCHEMY_MODULAR_ACCOUNT_V2_ADDRESS = "0x77021100bd87b7008e5e1989d0eb38555d0d0000";
 
 // @alpha (undocumented)
 export const ALCHEMY_MODULAR_ACCOUNT_V2_DELEGATION: string;

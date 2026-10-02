@@ -123,6 +123,16 @@ in-flight provider call is resumed rather than duplicated.
 Success gating must retain the SDK's independent post-confirmation delegation
 inspection. Do not replace it with provider acceptance or a submitted call ID.
 
+### From SDK 0.3.x
+
+SDK 0.4.0 requests Alchemy Modular Account v2 `v1.1.0` explicitly at
+`0x77021100bD87b7008E5E1989d0eB38555d0d0000`. The SDK sends the checksummed
+delegation address through the Alchemy wallet API and requires the same exact
+delegate in the post-confirmation bytecode check.
+
+Wallets delegated to the previous v1.0.0 implementation are rejected as
+unexpected delegation. This release does not migrate existing delegations.
+
 ## Turnkey
 
 Import `@global-torque/sdk/wallet/turnkey` and inject the existing

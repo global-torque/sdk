@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@alchemy/wallet-apis':
-        specifier: ^5.0.6
-        version: 5.1.0(typescript@6.0.3)(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))
+        specifier: ^5.2.7
+        version: 5.2.7(typescript@6.0.3)(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))
       '@turnkey/crypto':
         specifier: ^2.10.0
         version: 2.11.1
@@ -72,23 +72,28 @@ packages:
   '@adraffy/ens-normalize@1.11.1':
     resolution: {integrity: sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ==}
 
-  '@alchemy/common@5.0.0-beta.32':
-    resolution: {integrity: sha512-gVUrMhnhdD8UUipd70XUbmxm3PX3OhHK1TSi3ODBGOH3Jd9SoH0+mFagSn62pwi5XFPCOg3UGGXj9bmLKFlGhA==}
+  '@alchemy/common@5.2.0':
+    resolution: {integrity: sha512-vJg3JAzs3D5ik+PKN6p/4wU27MI0cLrf3t8mD/pNHZ6M87i020zsLzWUoP/Ti83/2N4Nb/ivZCqbsfnAYGmRFA==}
     peerDependencies:
       viem: ^2.45.0
 
-  '@alchemy/common@5.1.0':
-    resolution: {integrity: sha512-0qV8auuqTUZhpix8tOitjIkgDDfgg72Ls+Kg5+H08NFBUfsaYYzHSj/MFPK4YoIlfxn/uQ3CUEEHoocBhe7mfw==}
+  '@alchemy/common@5.2.7':
+    resolution: {integrity: sha512-g3oHxvqeEUtmoz15Znj4Z3Pi4fUq5LyGXohP7mGiTfPw4pyLnDv/U2uk0vDfm15+J6oc6BcWz11/KYtIGEObAQ==}
     peerDependencies:
       viem: ^2.45.0
 
-  '@alchemy/wallet-api-types@0.2.0-alpha.3':
-    resolution: {integrity: sha512-VaNj8gzGfPveo8i6l3aX4YovQezu4oDuAqyAy2k1LqsLf18pn2+iw3cV/WiFTwMrdQXLtnDYzS9D6NdkgEokzw==}
+  '@alchemy/smart-accounts@5.2.0':
+    resolution: {integrity: sha512-EN05esNI423pqkz4DsXptVAETc4p73/yP4nJcJguVdT+It7tOZodEgQyJ8jXpuzYjTVzckXF/cWiOsJkXLS99A==}
+    peerDependencies:
+      viem: ^2.45.0
+
+  '@alchemy/wallet-api-types@0.2.0-alpha.6':
+    resolution: {integrity: sha512-u7McYqUaS5ex3HShF9JucawbDS85YbBrGkGY+E0SmaFKVOMy1ZSwxzlob/OD+dwhGVNQzWn3GCzZHj7MVgCQfw==}
     peerDependencies:
       typescript: ^5.8.2
 
-  '@alchemy/wallet-apis@5.1.0':
-    resolution: {integrity: sha512-1brDJkmKcKW6pmyr4FUqtXsizYsiprFhn+p1R8NYQcDNp2y7gqjz4C1zNK0/tgkpksCeEQfe7KHBAWE8mhKvcA==}
+  '@alchemy/wallet-apis@5.2.7':
+    resolution: {integrity: sha512-FhkOb0sajFXSKKfemxa+t7WmR04NtVYiVvBcRkTj8WHbRrS89AulzR2iiWAGV1VQy6uo5m57ILNwCiLQJdB/Rg==}
     peerDependencies:
       '@solana/kit': '>=6.0.0'
       '@solana/web3.js': ^1.95.0
@@ -2251,19 +2256,25 @@ snapshots:
 
   '@adraffy/ens-normalize@1.11.1': {}
 
-  '@alchemy/common@5.0.0-beta.32(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))':
+  '@alchemy/common@5.2.0(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))':
     dependencies:
       viem: 2.55.11(typescript@6.0.3)(zod@4.4.3)
       zod: 3.25.76
 
-  '@alchemy/common@5.1.0(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))':
+  '@alchemy/common@5.2.7(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))':
     dependencies:
       viem: 2.55.11(typescript@6.0.3)(zod@4.4.3)
       zod: 3.25.76
 
-  '@alchemy/wallet-api-types@0.2.0-alpha.3(typescript@6.0.3)':
+  '@alchemy/smart-accounts@5.2.0(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))':
     dependencies:
-      '@alchemy/common': 5.0.0-beta.32(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))
+      '@alchemy/common': 5.2.0(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))
+      viem: 2.55.11(typescript@6.0.3)(zod@4.4.3)
+
+  '@alchemy/wallet-api-types@0.2.0-alpha.6(typescript@6.0.3)':
+    dependencies:
+      '@alchemy/common': 5.2.0(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))
+      '@alchemy/smart-accounts': 5.2.0(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))
       deep-equal: 2.2.3
       ox: 0.6.12(typescript@6.0.3)(zod@4.4.3)
       typescript: 6.0.3
@@ -2273,10 +2284,10 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@alchemy/wallet-apis@5.1.0(typescript@6.0.3)(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))':
+  '@alchemy/wallet-apis@5.2.7(typescript@6.0.3)(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))':
     dependencies:
-      '@alchemy/common': 5.1.0(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))
-      '@alchemy/wallet-api-types': 0.2.0-alpha.3(typescript@6.0.3)
+      '@alchemy/common': 5.2.7(viem@2.55.11(typescript@6.0.3)(zod@4.4.3))
+      '@alchemy/wallet-api-types': 0.2.0-alpha.6(typescript@6.0.3)
       deep-equal: 2.2.3
       ox: 0.11.3(typescript@6.0.3)(zod@4.4.3)
       viem: 2.55.11(typescript@6.0.3)(zod@4.4.3)

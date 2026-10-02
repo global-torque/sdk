@@ -1,11 +1,11 @@
 import { alchemyWalletTransport, createSmartWalletClient } from '@alchemy/wallet-apis';
-import { createPublicClient, http, type Hex, type SignableMessage } from 'viem';
+import { createPublicClient, getAddress, http, type Hex, type SignableMessage } from 'viem';
 import { sepolia } from 'viem/chains';
 
 /** @alpha */
 export const EIP_7702_DELEGATION_PREFIX = '0xef0100';
 /** @alpha */
-export const ALCHEMY_MODULAR_ACCOUNT_V2_ADDRESS = '0x69007702764179f14f51cdce752f4f775d74e139';
+export const ALCHEMY_MODULAR_ACCOUNT_V2_ADDRESS = '0x77021100bd87b7008e5e1989d0eb38555d0d0000';
 /** @alpha */
 export const ALCHEMY_MODULAR_ACCOUNT_V2_DELEGATION = `${EIP_7702_DELEGATION_PREFIX}${ALCHEMY_MODULAR_ACCOUNT_V2_ADDRESS.slice(2)}`;
 /** @alpha */
@@ -362,7 +362,10 @@ export function createEip7702Activator(options: CreateEip7702ActivatorOptions): 
   const delegateAddress = normalizeAddress(
     options.delegateAddress ?? ALCHEMY_MODULAR_ACCOUNT_V2_ADDRESS,
   );
-  const delegationName = (options.delegationName ?? 'ModularAccountV2').trim();
+  const delegationName =
+    options.delegationName === undefined
+      ? getAddress(delegateAddress)
+      : options.delegationName.trim();
   const pendingTtlMs = options.pendingTtlMs ?? DEFAULT_EIP_7702_PENDING_TTL_MS;
   const confirmationTimeoutMs =
     options.confirmationTimeoutMs ?? DEFAULT_EIP_7702_CONFIRMATION_TIMEOUT_MS;
@@ -515,7 +518,6 @@ export function createAlchemyEip7702Activator(
   return createEip7702Activator({
     chainId: sepolia.id,
     delegateAddress: ALCHEMY_MODULAR_ACCOUNT_V2_ADDRESS,
-    delegationName: 'ModularAccountV2',
     ...(options.pendingStore === undefined ? {} : { pendingStore: options.pendingStore }),
     ...(options.pendingTtlMs === undefined ? {} : { pendingTtlMs: options.pendingTtlMs }),
     ...(options.confirmationTimeoutMs === undefined
