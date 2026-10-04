@@ -133,6 +133,16 @@ delegate in the post-confirmation bytecode check.
 Wallets delegated to the previous v1.0.0 implementation are rejected as
 unexpected delegation. This release does not migrate existing delegations.
 
+### From SDK 0.4.0
+
+SDK 0.4.1 adds `activator.migrateLegacyDelegation({ signer,
+expectedWalletAddress })` for wallets with the exact previous v1.0.0 Alchemy
+delegate (`0x69007702764179f14f51cdce752f4f775d74e139`). Use this method
+only after the host authenticates the existing wallet. It rejects undelegated
+wallets and other on-chain code; `ensureDelegation` continues to reject the
+old delegate. The migration reuses pending-call recovery and confirms the
+v1.1.0 delegation on-chain before success.
+
 ## Turnkey
 
 Import `@global-torque/sdk/wallet/turnkey` and inject the existing

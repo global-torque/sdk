@@ -183,6 +183,12 @@ await activator.ensureDelegation({
   signer: exactSessionAccount,
   expectedWalletAddress: authoritativeWalletAddress,
 });
+
+// For wallets already delegated to the exact Alchemy v1.0.0 implementation only:
+await activator.migrateLegacyDelegation({
+  signer: exactSessionAccount,
+  expectedWalletAddress: authoritativeWalletAddress,
+});
 ```
 
 The EIP-7702 activator validates the exact expected delegate, resumes pending

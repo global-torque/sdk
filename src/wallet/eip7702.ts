@@ -9,6 +9,11 @@ export const ALCHEMY_MODULAR_ACCOUNT_V2_ADDRESS = '0x77021100bd87b7008e5e1989d0e
 /** @alpha */
 export const ALCHEMY_MODULAR_ACCOUNT_V2_DELEGATION = `${EIP_7702_DELEGATION_PREFIX}${ALCHEMY_MODULAR_ACCOUNT_V2_ADDRESS.slice(2)}`;
 /** @alpha */
+export const ALCHEMY_MODULAR_ACCOUNT_V2_LEGACY_ADDRESS =
+  '0x69007702764179f14f51cdce752f4f775d74e139';
+/** @alpha */
+export const ALCHEMY_MODULAR_ACCOUNT_V2_LEGACY_DELEGATION = `${EIP_7702_DELEGATION_PREFIX}${ALCHEMY_MODULAR_ACCOUNT_V2_LEGACY_ADDRESS.slice(2)}`;
+/** @alpha */
 export const ETHEREUM_SEPOLIA_CHAIN_ID = 11_155_111;
 /** @alpha */
 export const DEFAULT_EIP_7702_PENDING_TTL_MS = 24 * 60 * 60 * 1_000;
@@ -103,6 +108,7 @@ export interface EnsureEip7702DelegationInput {
 export interface Eip7702Activator {
   inspect(walletAddress: string): Promise<Eip7702DelegationInspection>;
   ensureDelegation(input: EnsureEip7702DelegationInput): Promise<Eip7702ActivationResult>;
+  migrateLegacyDelegation(input: EnsureEip7702DelegationInput): Promise<Eip7702ActivationResult>;
 }
 
 /** @alpha */
@@ -380,119 +386,125 @@ export function createEip7702Activator(options: CreateEip7702ActivatorOptions): 
     return inspectEip7702Bytecode(code, delegateAddress);
   };
 
+  const submitDelegation = async (
+    input: EnsureEip7702DelegationInput,
+    migrationOnly: boolean,
+  ): Promise<Eip7702ActivationResult> => {
+    throwIfAborted(input.signal);
+    const expectedAddress = requireAddress(input.expectedWalletAddress, 'Expected wallet address');
+    const signerAddress = requireAddress(input.signer.address, 'Wallet signer address');
+    if (normalizeAddress(signerAddress) !== normalizeAddress(expectedAddress)) {
+      throw new Error('The authenticated wallet does not match the expected wallet address.');
+    }
+    if (!input.signer.signAuthorization) {
+      throw new Error('The wallet signer does not support EIP-7702 authorization signing.');
+    }
+
+    input.onProgress?.({ phase: 'inspecting' });
+    const before = await inspect(expectedAddress);
+    throwIfAborted(input.signal);
+    if (before.status === 'ready') {
+      options.pendingStore?.clear(expectedAddress, chainId);
+      input.onProgress?.({ phase: 'verified' });
+      return before;
+    }
+    if (migrationOnly && before.code !== ALCHEMY_MODULAR_ACCOUNT_V2_LEGACY_DELEGATION) {
+      throw new Error('Only the previous Alchemy v1.0 wallet delegation can be migrated.');
+    }
+    if (!migrationOnly && before.status === 'unexpected_delegation') {
+      throw new Error(
+        before.delegationAddress
+          ? `This wallet is delegated to an unsupported contract (${before.delegationAddress}). Contact support before continuing.`
+          : 'This wallet address has unsupported on-chain code. Contact support before continuing.',
+      );
+    }
+
+    const provider = await options.createProvider(input.signer, expectedAddress);
+    throwIfAborted(input.signal);
+    const stored = options.pendingStore?.read(expectedAddress, chainId) ?? null;
+    const pending =
+      stored && isFreshPendingOperation(stored, expectedAddress, chainId, now(), pendingTtlMs)
+        ? stored
+        : null;
+    if (stored && !pending) {
+      options.pendingStore?.clear(expectedAddress, chainId);
+    }
+
+    let callId = pending?.callId ?? '';
+    if (!callId) {
+      input.onProgress?.({ phase: 'preparing' });
+      const prepared = await provider.prepareCalls({
+        account: expectedAddress,
+        calls: [],
+        capabilities: {
+          eip7702Auth: {
+            account: expectedAddress,
+            delegation: delegationName,
+          },
+        },
+      });
+      throwIfAborted(input.signal);
+      assertSafeEip7702PreparedCalls(prepared, expectedAddress, {
+        chainId,
+        delegateAddress,
+      });
+      const signed = await provider.signPreparedCalls(prepared);
+      throwIfAborted(input.signal);
+      const response = await provider.sendPreparedCalls(signed);
+      const responseId = (response as { id?: unknown } | null)?.id;
+      callId = typeof responseId === 'string' ? responseId.trim() : '';
+      if (!callId) {
+        throw new Error('Alchemy accepted the wallet upgrade without returning a call ID.');
+      }
+      options.pendingStore?.write({
+        address: normalizeAddress(expectedAddress),
+        callId,
+        chainId,
+        submittedAt: new Date(now()).toISOString(),
+      });
+    }
+
+    input.onSubmitted?.(callId);
+    input.onProgress?.({ phase: 'submitted', callId });
+    throwIfAborted(input.signal);
+    input.onProgress?.({ phase: 'confirming', callId });
+    let status: unknown;
+    try {
+      status = await provider.waitForCallsStatus({
+        id: callId,
+        timeout: confirmationTimeoutMs,
+        throwOnFailure: true,
+      });
+    } catch (error) {
+      if (isTerminalFailure(error)) {
+        options.pendingStore?.clear(expectedAddress, chainId);
+      }
+      throw error;
+    }
+    throwIfAborted(input.signal);
+
+    const after = await inspect(expectedAddress);
+    throwIfAborted(input.signal);
+    if (after.status !== 'ready') {
+      throw new Error(
+        'The wallet upgrade was submitted, but the expected Alchemy delegation was not confirmed on-chain.',
+      );
+    }
+    options.pendingStore?.clear(expectedAddress, chainId);
+    input.onProgress?.({ phase: 'verified', callId });
+
+    const transactionHash = transactionHashFromStatus(status);
+    return {
+      ...after,
+      callId,
+      ...(transactionHash ? { transactionHash } : {}),
+    };
+  };
+
   return {
     inspect,
-    async ensureDelegation(input): Promise<Eip7702ActivationResult> {
-      throwIfAborted(input.signal);
-      const expectedAddress = requireAddress(
-        input.expectedWalletAddress,
-        'Expected wallet address',
-      );
-      const signerAddress = requireAddress(input.signer.address, 'Wallet signer address');
-      if (normalizeAddress(signerAddress) !== normalizeAddress(expectedAddress)) {
-        throw new Error('The authenticated wallet does not match the expected wallet address.');
-      }
-      if (!input.signer.signAuthorization) {
-        throw new Error('The wallet signer does not support EIP-7702 authorization signing.');
-      }
-
-      input.onProgress?.({ phase: 'inspecting' });
-      const before = await inspect(expectedAddress);
-      throwIfAborted(input.signal);
-      if (before.status === 'ready') {
-        options.pendingStore?.clear(expectedAddress, chainId);
-        input.onProgress?.({ phase: 'verified' });
-        return before;
-      }
-      if (before.status === 'unexpected_delegation') {
-        throw new Error(
-          before.delegationAddress
-            ? `This wallet is delegated to an unsupported contract (${before.delegationAddress}). Contact support before continuing.`
-            : 'This wallet address has unsupported on-chain code. Contact support before continuing.',
-        );
-      }
-
-      const provider = await options.createProvider(input.signer, expectedAddress);
-      throwIfAborted(input.signal);
-      const stored = options.pendingStore?.read(expectedAddress, chainId) ?? null;
-      const pending =
-        stored && isFreshPendingOperation(stored, expectedAddress, chainId, now(), pendingTtlMs)
-          ? stored
-          : null;
-      if (stored && !pending) {
-        options.pendingStore?.clear(expectedAddress, chainId);
-      }
-
-      let callId = pending?.callId ?? '';
-      if (!callId) {
-        input.onProgress?.({ phase: 'preparing' });
-        const prepared = await provider.prepareCalls({
-          account: expectedAddress,
-          calls: [],
-          capabilities: {
-            eip7702Auth: {
-              account: expectedAddress,
-              delegation: delegationName,
-            },
-          },
-        });
-        throwIfAborted(input.signal);
-        assertSafeEip7702PreparedCalls(prepared, expectedAddress, {
-          chainId,
-          delegateAddress,
-        });
-        const signed = await provider.signPreparedCalls(prepared);
-        throwIfAborted(input.signal);
-        const response = await provider.sendPreparedCalls(signed);
-        const responseId = (response as { id?: unknown } | null)?.id;
-        callId = typeof responseId === 'string' ? responseId.trim() : '';
-        if (!callId) {
-          throw new Error('Alchemy accepted the wallet upgrade without returning a call ID.');
-        }
-        options.pendingStore?.write({
-          address: normalizeAddress(expectedAddress),
-          callId,
-          chainId,
-          submittedAt: new Date(now()).toISOString(),
-        });
-      }
-
-      input.onSubmitted?.(callId);
-      input.onProgress?.({ phase: 'submitted', callId });
-      throwIfAborted(input.signal);
-      input.onProgress?.({ phase: 'confirming', callId });
-      let status: unknown;
-      try {
-        status = await provider.waitForCallsStatus({
-          id: callId,
-          timeout: confirmationTimeoutMs,
-          throwOnFailure: true,
-        });
-      } catch (error) {
-        if (isTerminalFailure(error)) {
-          options.pendingStore?.clear(expectedAddress, chainId);
-        }
-        throw error;
-      }
-      throwIfAborted(input.signal);
-
-      const after = await inspect(expectedAddress);
-      throwIfAborted(input.signal);
-      if (after.status !== 'ready') {
-        throw new Error(
-          'The wallet upgrade was submitted, but the expected Alchemy delegation was not confirmed on-chain.',
-        );
-      }
-      options.pendingStore?.clear(expectedAddress, chainId);
-      input.onProgress?.({ phase: 'verified', callId });
-
-      const transactionHash = transactionHashFromStatus(status);
-      return {
-        ...after,
-        callId,
-        ...(transactionHash ? { transactionHash } : {}),
-      };
-    },
+    ensureDelegation: (input) => submitDelegation(input, false),
+    migrateLegacyDelegation: (input) => submitDelegation(input, true),
   };
 }
 

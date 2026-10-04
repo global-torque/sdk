@@ -46,6 +46,12 @@ export const ALCHEMY_MODULAR_ACCOUNT_V2_ADDRESS = "0x77021100bd87b7008e5e1989d0e
 // @alpha (undocumented)
 export const ALCHEMY_MODULAR_ACCOUNT_V2_DELEGATION: string;
 
+// @alpha (undocumented)
+export const ALCHEMY_MODULAR_ACCOUNT_V2_LEGACY_ADDRESS = "0x69007702764179f14f51cdce752f4f775d74e139";
+
+// @alpha (undocumented)
+export const ALCHEMY_MODULAR_ACCOUNT_V2_LEGACY_DELEGATION: string;
+
 // @public
 export interface AmountStep {
     // (undocumented)
@@ -542,6 +548,8 @@ export interface Eip7702Activator {
     ensureDelegation(input: EnsureEip7702DelegationInput): Promise<Eip7702ActivationResult>;
     // (undocumented)
     inspect(walletAddress: string): Promise<Eip7702DelegationInspection>;
+    // (undocumented)
+    migrateLegacyDelegation(input: EnsureEip7702DelegationInput): Promise<Eip7702ActivationResult>;
 }
 
 // @alpha (undocumented)

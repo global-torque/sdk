@@ -4,6 +4,14 @@ All notable public changes are recorded here. The package follows semantic
 versioning. Before `1.0`, breaking API changes require a new minor version;
 patch releases preserve the supported API.
 
+## 0.4.1 - 2026-10-04
+
+- Added `migrateLegacyDelegation` for existing Alchemy Modular Account v2 v1.0.0
+  EIP-7702 wallets on Ethereum Sepolia. Only the exact previous Alchemy delegate
+  is accepted; undelegated wallets and other on-chain code remain unsupported.
+  Submission retains pending-call recovery and requires the v1.1.0 delegate
+  on-chain before reporting success. Ordinary `ensureDelegation` remains unchanged.
+
 ## 0.4.0 - 2026-10-02
 
 - **Breaking:** EIP-7702 activation now requests Alchemy Modular Account v2

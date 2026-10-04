@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   ALCHEMY_MODULAR_ACCOUNT_V2_ADDRESS,
   ALCHEMY_MODULAR_ACCOUNT_V2_DELEGATION,
+  ALCHEMY_MODULAR_ACCOUNT_V2_LEGACY_DELEGATION,
   ETHEREUM_SEPOLIA_CHAIN_ID,
   assertSafeEip7702PreparedCalls,
   createAlchemyEip7702Activator,
@@ -385,6 +386,71 @@ describe('createEip7702Activator', () => {
       }),
     ).rejects.toThrow('delegated to an unsupported contract');
     expect(createProvider).not.toHaveBeenCalled();
+  });
+
+  it('migrates only the exact previous Alchemy delegation and verifies v1.1 on-chain', async () => {
+    const provider = createProvider();
+    const inspectBytecode = vi
+      .fn()
+      .mockResolvedValueOnce(ALCHEMY_MODULAR_ACCOUNT_V2_LEGACY_DELEGATION)
+      .mockResolvedValueOnce(ALCHEMY_MODULAR_ACCOUNT_V2_DELEGATION);
+    const activator = createEip7702Activator({
+      inspectBytecode,
+      createProvider: vi.fn(() => provider),
+    });
+
+    await expect(
+      activator.migrateLegacyDelegation({
+        signer: createSigner(),
+        expectedWalletAddress: walletAddress,
+      }),
+    ).resolves.toMatchObject({
+      status: 'ready',
+      delegationAddress: ALCHEMY_MODULAR_ACCOUNT_V2_ADDRESS,
+    });
+    expect(provider.sendPreparedCalls).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not migrate undelegated or unknown-code wallets', async () => {
+    const createProvider = vi.fn();
+    for (const code of ['0x', '0xef01002222222222222222222222222222222222222222', '0x1234']) {
+      const activator = createEip7702Activator({
+        inspectBytecode: vi.fn(async () => code),
+        createProvider,
+      });
+      await expect(
+        activator.migrateLegacyDelegation({
+          signer: createSigner(),
+          expectedWalletAddress: walletAddress,
+        }),
+      ).rejects.toThrow('Only the previous Alchemy v1.0');
+    }
+    expect(createProvider).not.toHaveBeenCalled();
+  });
+
+  it('does not report migrated until the new delegation is observed', async () => {
+    const store = createMemoryStore();
+    const provider = createProvider();
+    const activator = createEip7702Activator({
+      inspectBytecode: vi.fn(async () => ALCHEMY_MODULAR_ACCOUNT_V2_LEGACY_DELEGATION),
+      createProvider: vi.fn(() => provider),
+      pendingStore: store,
+    });
+    await expect(
+      activator.migrateLegacyDelegation({
+        signer: createSigner(),
+        expectedWalletAddress: walletAddress,
+      }),
+    ).rejects.toThrow('not confirmed on-chain');
+    expect(store.write).toHaveBeenCalled();
+    expect(store.clear).not.toHaveBeenCalled();
+    await expect(
+      activator.migrateLegacyDelegation({
+        signer: createSigner(),
+        expectedWalletAddress: walletAddress,
+      }),
+    ).rejects.toThrow('not confirmed on-chain');
+    expect(provider.prepareCalls).toHaveBeenCalledTimes(1);
   });
 
   it('submits once and succeeds only after exact post-confirmation inspection', async () => {
