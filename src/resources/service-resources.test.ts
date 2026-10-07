@@ -23,7 +23,7 @@ const setup = (responses: readonly Response[]) => {
 };
 
 describe('low-level service resources', () => {
-  it('validates analytics events and logs without inventing idempotency', async () => {
+  it('validates analytics events and logs and sends a default key, not the caller key', async () => {
     const context = setup([
       jsonResponse({ id: 'event-1' }, { status: 201 }),
       jsonResponse({ id: 'log-1' }, { status: 201 }),
@@ -61,7 +61,9 @@ describe('low-level service resources', () => {
       'https://analytics.example.test/v1.0/public/event',
       'https://analytics.example.test/v1.0/public/log',
     ]);
-    expect(context.requests[1]?.headers.get('idempotency-key')).toBeNull();
+    const logKey = context.requests[1]?.headers.get('idempotency-key');
+    expect(logKey).toBeTruthy();
+    expect(logKey).not.toBe('caller-must-not-own-this');
     context.transport.dispose();
   });
 

@@ -187,7 +187,7 @@ describe('investments resource', () => {
     context.transport.dispose();
   });
 
-  it('executes every pinned mutation with contract request bodies and no idempotency header', async () => {
+  it('executes every pinned mutation with contract request bodies and a default key only on create', async () => {
     const amount = {
       amount: '6.25',
       profile_id: 42,
@@ -263,7 +263,11 @@ describe('investments resource', () => {
       {},
       { cancelation_reason: 'Changed investment plan' },
     ]);
-    for (const request of context.requests) {
+    const [create, ...updates] = context.requests;
+    const createKey = create?.headers.get('idempotency-key');
+    expect(createKey).toBeTruthy();
+    expect(createKey).not.toBe('must-not-be-forwarded');
+    for (const request of updates) {
       expect(request.headers.has('idempotency-key')).toBe(false);
     }
     expect(context.routes).toEqual([

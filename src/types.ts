@@ -159,7 +159,10 @@ export interface SdkRequestInput<Mode extends SdkResponseMode = SdkResponseMode>
   /** `null` disables the transport timeout for temporary legacy compatibility facades. */
   timeoutMs?: number | null;
   retry?: SdkRetryPolicy;
-  /** Explicit transport-only idempotency key. It never enables mutation retries by itself. */
+  /**
+   * Explicit transport-only idempotency key. It replaces the default POST key and never enables
+   * mutation retries by itself.
+   */
   idempotencyKey?: string;
   /** Validators belong to `SdkValidatedRequestInput`; this keeps unvalidated calls unknown. */
   responseValidator?: never;
@@ -238,6 +241,13 @@ export interface InvestSdkTransportConfig {
   maxTextResponseBodyBytes?: number;
   retry?: SdkRetryPolicy;
   deduplicateSafeReads?: boolean;
+  /**
+   * Sends a default `Idempotency-Key` on POST requests to `standard` services when the caller
+   * gives no `idempotencyKey`, the prepared body is a string, such as serialized JSON, or absent,
+   * and `crypto.randomUUID` exists. The same method, URL, and body keep one key until a request
+   * succeeds. Defaults to `true`. `false` turns the default off. An explicit key is still sent.
+   */
+  defaultIdempotencyKeys?: boolean;
   hooks?: SdkHooks;
   /**
    * Synchronous provenance classifier for injected Fetch adapters. The SDK
