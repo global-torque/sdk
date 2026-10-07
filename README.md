@@ -50,7 +50,8 @@ The transport provides:
 - safe-read retries for `GET`, `HEAD`, and `OPTIONS`, with bounded backoff, jitter, and
   `Retry-After` handling;
 - explicit Fetch cache-mode forwarding without SDK-owned persistence policy;
-- explicit idempotency-key transport without automatic mutation retries;
+- a default `Idempotency-Key` on eligible POST requests and explicit
+  idempotency keys, without automatic mutation retries;
 - bounded cursor pagination and deterministic testing helpers;
 - opt-in safe-read deduplication; and
 - abort-on-dispose ownership and credentialed `redirect: 'error'` requests.
@@ -132,9 +133,38 @@ set `Authorization`, so credential ownership remains explicit and origin-bound.
 
 ## Idempotency keys
 
-`createIdempotencyKeys` keeps one in-memory key per action scope and never
-retries the action itself. The scope must include everything that makes two
-attempts the same action, such as the offer slug and the profile ID:
+The transport adds a default `Idempotency-Key` header to a POST request when
+all of these conditions hold:
+
+- The transport option `defaultIdempotencyKeys` is not `false`.
+- The caller passes no `idempotencyKey`.
+- The service uses the `standard` header policy.
+- The prepared body is a string, such as serialized JSON, or there is no body.
+- The runtime provides `crypto.randomUUID`.
+
+Two requests are the same when the method, the full URL, and the body match.
+The same request keeps its key until it succeeds. A retry after an error, a
+repeated click, or a retry through a new transport sends the same key. After a
+success, the next identical request gets a new key. The keys stay in memory
+for the lifetime of the loaded SDK module, and a page reload clears them.
+
+One key store serves every transport and every signed-in user in a page or
+process. After a user change without a page reload, an identical POST can reuse
+the previous user's key. Such a host reloads the page when the user changes, or
+sets `defaultIdempotencyKeys: false` and passes its own keys. A server that
+serves several users from one process sets `defaultIdempotencyKeys: false`.
+
+Bodies that are not strings after preparation, such as files, `FormData`,
+`URLSearchParams`, binary data, and streams, get no default key. An
+explicit `idempotencyKey` replaces the default key. A backend that ignores the
+header behaves as before. If a host rejects the `Idempotency-Key` header in its
+CORS rules, create the transport for that host with
+`defaultIdempotencyKeys: false`.
+
+To choose the scope of an action yourself, use `createIdempotencyKeys`. It
+keeps one in-memory key per action scope and never retries the action itself.
+The scope must include everything that makes two attempts the same action,
+such as the offer slug and the profile ID:
 
 ```ts
 import { createIdempotencyKeys } from '@global-torque/sdk';
@@ -153,6 +183,8 @@ scope sends the same `idempotencyKey`. Once an action resolves, the key is
 dropped and the next run for that scope starts a new action with a new key.
 Call `forget(scope)` when the host learns that the action completed another
 way, for example through a reconciliation read after a lost response.
+No API drops a default key. A host that reconciles a lost response passes an
+explicit key from its own `createIdempotencyKeys()` store.
 
 ## Browser wallet subpaths
 

@@ -4,6 +4,20 @@ All notable public changes are recorded here. The package follows semantic
 versioning. Before `1.0`, breaking API changes require a new minor version;
 patch releases preserve the supported API.
 
+## Unreleased
+
+- **Breaking behavior change:** the transport now adds a default
+  `Idempotency-Key` header to POST requests. It applies to services with the
+  `standard` header policy when the caller passes no `idempotencyKey`, the
+  prepared body is a string, such as serialized JSON, or absent, and the
+  runtime provides `crypto.randomUUID`. The same method, URL, and body keep one
+  key until a request succeeds, also through a new transport. An explicit
+  `idempotencyKey` replaces the default key.
+- Added the transport option `defaultIdempotencyKeys`, which defaults to
+  `true`. Set it to `false` for a host whose CORS rules reject the
+  `Idempotency-Key` header, because the browser blocks such a request. See
+  `MIGRATION.md`.
+
 ## 0.4.1 - 2026-10-04
 
 - Added `migrateLegacyDelegation` for existing Alchemy Modular Account v2 v1.0.0

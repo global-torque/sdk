@@ -113,6 +113,49 @@ authentication policy before migrating a production call. Mutations
 additionally require a documented server
 idempotency contract; SDK resource factories do not enable mutation retries.
 
+## Idempotency keys
+
+### From SDK 0.4.x
+
+The transport now adds a default `Idempotency-Key` header to POST requests to
+services with the `standard` header policy. It does so when the caller passes
+no `idempotencyKey`, the prepared body is a string, such as serialized JSON, or
+absent, and the runtime provides `crypto.randomUUID`. A failed request and its
+retry with the same method, URL, and body send the same key. After a success,
+the next identical request gets a new key. An explicit `idempotencyKey` still
+replaces the default key.
+
+One key store serves every transport and every signed-in user in a page or
+process. After a user change without a page reload, an identical POST can reuse
+the previous user's key. Such a host reloads the page when the user changes, or
+sets `defaultIdempotencyKeys: false` and passes its own keys. A server that
+serves several users from one process sets `defaultIdempotencyKeys: false`.
+
+The new header changes the CORS preflight of a browser POST. Each API host that
+receives these requests must list `Idempotency-Key` in
+`Access-Control-Allow-Headers`. If a host does not list it, the browser blocks
+the request. Check each host and each application origin before you upgrade:
+
+```sh
+curl -si -X OPTIONS https://api.example.com/v1/resource \
+  -H 'Origin: https://app.example.com' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: content-type,idempotency-key,x-request-id'
+```
+
+If you cannot change the CORS rules of a host, turn the default off for the
+transport of that host:
+
+```ts
+const identity = createInvestSdkTransport({
+  services: { identity: { baseUrl: 'https://id.example.com/', applicationAuth: 'none' } },
+  defaultIdempotencyKeys: false,
+});
+```
+
+The transport still sends an explicit `idempotencyKey` when the option is
+`false`.
+
 ## EIP-7702
 
 Import `@global-torque/sdk/wallet/eip7702`, resolve the exact signer and

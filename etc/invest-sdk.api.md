@@ -1653,6 +1653,7 @@ export interface InvestSdkTransportConfig {
     createRequestId?: () => string;
     // (undocumented)
     deduplicateSafeReads?: boolean;
+    defaultIdempotencyKeys?: boolean;
     // (undocumented)
     fetch?: typeof fetch;
     // (undocumented)

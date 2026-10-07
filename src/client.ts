@@ -16,6 +16,7 @@ import {
   type SdkErrorContext,
   type SdkHttpErrorContext,
 } from './errors.js';
+import { createIdempotencyKeys } from './idempotency.js';
 import type {
   InvestSdkTransport,
   InvestSdkTransportConfig,
@@ -136,6 +137,9 @@ class SuccessBodyLimitError extends Error {}
 const isRequestAborted = (active: ActiveRequest) => active.controller.signal.aborted;
 
 const defaultRequestId = () => globalThis.crypto.randomUUID();
+
+// One store for the module, so a retry through a new transport reuses the key of a failed POST.
+const postKeys = createIdempotencyKeys();
 
 const failConfiguration = (code: string, message: string): never => {
   throw new SdkConfigurationError(code, message);
@@ -1201,6 +1205,16 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
     );
   }
   const deduplicateSafeReads = configRecord.deduplicateSafeReads === true;
+  if (
+    configRecord.defaultIdempotencyKeys !== undefined &&
+    typeof configRecord.defaultIdempotencyKeys !== 'boolean'
+  ) {
+    failConfiguration(
+      'SDK_IDEMPOTENCY_CONFIG_INVALID',
+      'defaultIdempotencyKeys must be a boolean.',
+    );
+  }
+  const defaultIdempotencyKeys = configRecord.defaultIdempotencyKeys !== false;
   const createRequestId =
     (configRecord.createRequestId as (() => string) | undefined) ?? defaultRequestId;
   const now = (configRecord.now as (() => number) | undefined) ?? Date.now;
@@ -1673,6 +1687,21 @@ export const createInvestSdkTransport = (config: InvestSdkTransportConfig): Inve
         }
       };
 
+      if (
+        defaultIdempotencyKeys &&
+        input.method === 'POST' &&
+        idempotencyKey === undefined &&
+        service.headerPolicy === 'standard' &&
+        (body === undefined || typeof body === 'string') &&
+        // Some runtimes have no crypto or no randomUUID, although the types declare both.
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        typeof globalThis.crypto?.randomUUID === 'function'
+      ) {
+        return await postKeys.run(`POST ${url.href} ${body ?? ''}`, (key) => {
+          headers.set(IDEMPOTENCY_KEY_HEADER, key);
+          return execute();
+        });
+      }
       if (!deduplicateSafeReads || !safeRead || input.signal !== undefined) return await execute();
       const deduplicationKey = createReadDeduplicationKey(
         serviceName,

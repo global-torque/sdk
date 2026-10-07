@@ -163,6 +163,7 @@ describe('createInvestSdkTransport', () => {
       { timeoutMs: 0 },
       { maxErrorBodyBytes: 0 },
       { maxTextResponseBodyBytes: 0 },
+      { defaultIdempotencyKeys: 'false' as never },
     ];
 
     for (const overrides of invalidConfigurations) {
@@ -1839,6 +1840,75 @@ describe('createInvestSdkTransport', () => {
     await expect(
       client.post('/orders', {}, { idempotencyKey: 'bad\nvalue' }),
     ).rejects.toMatchObject({ code: 'SDK_IDEMPOTENCY_KEY_INVALID' });
+  });
+
+  it('keeps one default POST key per request until it succeeds', async () => {
+    const script = createFetchScript([
+      new TypeError('offline'),
+      jsonResponse({ id: 'other-body' }, { status: 201 }),
+      jsonResponse({ id: 'retry' }, { status: 201 }),
+      jsonResponse({ id: 'next-action' }, { status: 201 }),
+    ]);
+    const clientA = createInvestSdkTransport(createConfig(script.fetch)).createServiceClient(
+      'torque',
+    );
+    const clientB = createInvestSdkTransport(createConfig(script.fetch)).createServiceClient(
+      'torque',
+    );
+
+    await expect(clientA.post('/idem', { n: 1 })).rejects.toBeInstanceOf(SdkNetworkError);
+    await clientB.post('/idem', { n: 2 });
+    await clientB.post('/idem', { n: 1 });
+    await clientB.post('/idem', { n: 1 });
+
+    const keys = script.requests.map(({ headers }) => headers.get('idempotency-key'));
+    expect(keys).toHaveLength(4);
+    expect(keys).not.toContain(null);
+    const [failed, otherBody, retry, afterSuccess] = keys;
+    expect(otherBody).not.toBe(failed);
+    expect(retry).toBe(failed);
+    expect(afterSuccess).not.toBe(failed);
+  });
+
+  it('adds no default key outside the rule', async () => {
+    const script = createFetchScript(Array.from({ length: 7 }, () => jsonResponse({ ok: true })));
+    const client = createInvestSdkTransport(createConfig(script.fetch)).createServiceClient(
+      'torque',
+    );
+    const policies = createInvestSdkTransport(
+      createConfig(script.fetch, {
+        services: {
+          raw: { baseUrl: 'https://raw.example.test/', headerPolicy: 'caller' },
+          ext: {
+            baseUrl: 'https://public.example.test/',
+            applicationAuth: 'none',
+            headerPolicy: 'minimal',
+          },
+        },
+      }),
+    );
+    const callerPolicy = policies.createServiceClient('raw');
+    const minimalPolicy = policies.createServiceClient('ext');
+    const optedOut = createInvestSdkTransport(
+      createConfig(script.fetch, { defaultIdempotencyKeys: false }),
+    ).createServiceClient('torque');
+
+    await client.post('/idem-rule', { n: 1 });
+    await client.get('/idem-rule');
+    await client.post('/idem-rule', new FormData());
+    await callerPolicy.post('/idem-rule', { n: 1 });
+    await minimalPolicy.post('/idem-rule', { n: 1 });
+    await optedOut.post('/idem-rule', { n: 1 });
+    vi.stubGlobal('crypto', {});
+    try {
+      await client.post('/idem-rule', { n: 1 });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    const keys = script.requests.map(({ headers }) => headers.get('idempotency-key'));
+    expect(keys[0]).toEqual(expect.any(String));
+    expect(keys.slice(1)).toEqual([null, null, null, null, null, null]);
   });
 
   it('supports deterministic exponential retry, jitter, and Retry-After for safe reads only', async () => {
