@@ -4,7 +4,7 @@ All notable public changes are recorded here. The package follows semantic
 versioning. Before `1.0`, breaking API changes require a new minor version;
 patch releases preserve the supported API.
 
-## Unreleased
+## 0.5.0 - 2026-10-07
 
 - **Breaking behavior change:** the transport now adds a default
   `Idempotency-Key` header to POST requests. It applies to services with the
