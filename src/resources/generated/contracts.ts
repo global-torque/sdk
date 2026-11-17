@@ -34365,7 +34365,7 @@ export interface OfferListItemResponse {
   readonly min_investment?: string;
   readonly image_link_id?: number | null;
   readonly total_shares?: string;
-  readonly valuation?: number;
+  readonly valuation?: string;
   readonly subscribed_shares?: string;
   readonly confirmed_shares?: string;
   readonly status?: string;
@@ -34388,8 +34388,8 @@ export interface OfferListItemResponse {
   readonly tokenization_engine?: string;
   readonly fund_structure?: 'open_ended' | 'closed_ended' | (string & {});
   readonly on_chain_summary?: OfferOnChainSummary;
-  readonly amount_raised?: number;
-  readonly target_raise?: number;
+  readonly amount_raised?: string;
+  readonly target_raise?: string;
 }
 
 /** Generated from the pinned backend contract. @public */
@@ -34463,7 +34463,7 @@ export interface OfferDetailResponse {
   readonly min_investment?: string;
   readonly image_link_id?: number | null;
   readonly total_shares?: string;
-  readonly valuation?: number;
+  readonly valuation?: string;
   readonly subscribed_shares?: string;
   readonly confirmed_shares?: string;
   readonly status?: string;
@@ -34498,8 +34498,8 @@ export interface OfferDetailResponse {
   readonly instagram?: string;
   readonly telegram?: string;
   readonly mastodon?: string;
-  readonly amount_raised?: number;
-  readonly target_raise?: number;
+  readonly amount_raised?: string;
+  readonly target_raise?: string;
 }
 
 /** Generated from the pinned backend contract. @public */
@@ -34600,7 +34600,7 @@ export const offerListResponseSchema = {
           description: 'Canonical exact decimal string; JSON numeric tokens are rejected.',
         },
         valuation: {
-          type: 'number',
+          type: 'string',
         },
         subscribed_shares: {
           type: 'string',
@@ -34684,10 +34684,10 @@ export const offerListResponseSchema = {
           $ref: '#/$defs/OfferOnChainSummary',
         },
         amount_raised: {
-          type: 'number',
+          type: 'string',
         },
         target_raise: {
-          type: 'number',
+          type: 'string',
         },
       },
       additionalProperties: false,
@@ -34918,7 +34918,7 @@ export const offerListResponseSchema = {
           description: 'Canonical exact decimal string; JSON numeric tokens are rejected.',
         },
         valuation: {
-          type: 'number',
+          type: 'string',
         },
         subscribed_shares: {
           type: 'string',
@@ -35038,10 +35038,10 @@ export const offerListResponseSchema = {
           type: 'string',
         },
         amount_raised: {
-          type: 'number',
+          type: 'string',
         },
         target_raise: {
-          type: 'number',
+          type: 'string',
         },
       },
       additionalProperties: false,
@@ -35141,7 +35141,7 @@ export const offerDetailResponseSchema = {
       description: 'Canonical exact decimal string; JSON numeric tokens are rejected.',
     },
     valuation: {
-      type: 'number',
+      type: 'string',
     },
     subscribed_shares: {
       type: 'string',
@@ -35261,10 +35261,10 @@ export const offerDetailResponseSchema = {
       type: 'string',
     },
     amount_raised: {
-      type: 'number',
+      type: 'string',
     },
     target_raise: {
-      type: 'number',
+      type: 'string',
     },
   },
   additionalProperties: false,
@@ -35336,7 +35336,7 @@ export const offerDetailResponseSchema = {
           description: 'Canonical exact decimal string; JSON numeric tokens are rejected.',
         },
         valuation: {
-          type: 'number',
+          type: 'string',
         },
         subscribed_shares: {
           type: 'string',
@@ -35420,10 +35420,10 @@ export const offerDetailResponseSchema = {
           $ref: '#/$defs/OfferOnChainSummary',
         },
         amount_raised: {
-          type: 'number',
+          type: 'string',
         },
         target_raise: {
-          type: 'number',
+          type: 'string',
         },
       },
       additionalProperties: false,

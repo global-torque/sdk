@@ -2003,7 +2003,7 @@ export interface OfferDetailResponse {
     // (undocumented)
     readonly additional_details?: string;
     // (undocumented)
-    readonly amount_raised?: number;
+    readonly amount_raised?: string;
     // (undocumented)
     readonly approved_at?: string;
     // (undocumented)
@@ -2079,7 +2079,7 @@ export interface OfferDetailResponse {
     // (undocumented)
     readonly subscribed_shares?: string;
     // (undocumented)
-    readonly target_raise?: number;
+    readonly target_raise?: string;
     // (undocumented)
     readonly telegram?: string;
     // (undocumented)
@@ -2093,7 +2093,7 @@ export interface OfferDetailResponse {
     // (undocumented)
     readonly twitter?: string;
     // (undocumented)
-    readonly valuation?: number;
+    readonly valuation?: string;
     // (undocumented)
     readonly website?: string;
 }
@@ -2155,7 +2155,7 @@ export interface OfferLatestFinalizedNAV {
 // @public
 export interface OfferListItemResponse {
     // (undocumented)
-    readonly amount_raised?: number;
+    readonly amount_raised?: string;
     // (undocumented)
     readonly approved_at?: string;
     // (undocumented)
@@ -2213,7 +2213,7 @@ export interface OfferListItemResponse {
     // (undocumented)
     readonly subscribed_shares?: string;
     // (undocumented)
-    readonly target_raise?: number;
+    readonly target_raise?: string;
     // (undocumented)
     readonly ticker?: string;
     // (undocumented)
@@ -2223,7 +2223,7 @@ export interface OfferListItemResponse {
     // (undocumented)
     readonly total_shares?: string;
     // (undocumented)
-    readonly valuation?: number;
+    readonly valuation?: string;
     // (undocumented)
     readonly website?: string;
 }

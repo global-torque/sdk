@@ -4,6 +4,11 @@ All notable public changes are recorded here. The package follows semantic
 versioning. Before `1.0`, breaking API changes require a new minor version;
 patch releases preserve the supported API.
 
+## 0.6.0 - 2026-11-17
+
+- Corrected public offer `valuation`, `amount_raised`, and `target_raise`
+  response contracts to accept the API's exact decimal strings.
+
 ## 0.5.0 - 2026-10-07
 
 - **Breaking behavior change:** the transport now adds a default

@@ -35,6 +35,9 @@ describe('offers resource', () => {
             id: 2,
             slug: 'nixplay',
             price_per_share: '25.5',
+            valuation: '1000000',
+            amount_raised: '25000',
+            target_raise: '100000',
           },
         ],
         count: 1,
@@ -44,6 +47,9 @@ describe('offers resource', () => {
 
     expect(result.data.count).toBe(1);
     expect(result.data.data?.[0]?.price_per_share).toBe('25.5');
+    expect(result.data.data?.[0]?.valuation).toBe('1000000');
+    expect(result.data.data?.[0]?.amount_raised).toBe('25000');
+    expect(result.data.data?.[0]?.target_raise).toBe('100000');
     expect(context.requests[0]?.url).toBe(
       'https://offers.example.test/v1.0/public/offer?limit=50&offset=3',
     );
@@ -52,10 +58,21 @@ describe('offers resource', () => {
   });
 
   it('encodes detail slugs and validates detail responses', async () => {
-    const context = setup([jsonResponse({ id: 2, slug: 'series seed' })]);
+    const context = setup([
+      jsonResponse({
+        id: 2,
+        slug: 'series seed',
+        valuation: '1000000',
+        amount_raised: '25000',
+        target_raise: '100000',
+      }),
+    ]);
     const result = await context.resource.getOffer({ slug: 'series seed' });
 
     expect(result.data.slug).toBe('series seed');
+    expect(result.data.valuation).toBe('1000000');
+    expect(result.data.amount_raised).toBe('25000');
+    expect(result.data.target_raise).toBe('100000');
     expect(context.requests[0]?.url).toBe(
       'https://offers.example.test/v1.0/public/offer/series%20seed',
     );
