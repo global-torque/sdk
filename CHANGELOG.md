@@ -4,6 +4,12 @@ All notable public changes are recorded here. The package follows semantic
 versioning. Before `1.0`, breaking API changes require a new minor version;
 patch releases preserve the supported API.
 
+## 0.6.1 - 2026-11-27
+
+- Added the `@global-torque/sdk/websocket` subpath with an instance-scoped native
+  WebSocket client. Hosts provide the endpoint, connection policy, heartbeat
+  settings, and message handling.
+
 ## 0.6.0 - 2026-11-17
 
 - Corrected public offer `valuation`, `amount_raised`, and `target_raise`

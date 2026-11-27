@@ -50,6 +50,7 @@ const requiredExports = [
   './resources/users',
   './resources/vault',
   './testing',
+  './websocket',
   './types',
   './wallet/eip7702',
   './wallet/turnkey',
@@ -88,6 +89,7 @@ for (const requiredStatement of [
   '`@global-torque/sdk/wallet/sponsored-calls`',
   '`@global-torque/sdk/wallet/eip7702`',
   '`@global-torque/sdk/wallet/turnkey`',
+  '`@global-torque/sdk/websocket`',
   'MIT',
 ]) {
   if (!readme.includes(requiredStatement)) {

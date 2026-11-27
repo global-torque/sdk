@@ -1,7 +1,7 @@
 {
   "name": "@global-torque/sdk",
   "private": false,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Framework-free investment resources, transport, and injected EVM wallet building blocks.",
   "keywords": [
     "eip-7702",
@@ -170,6 +170,10 @@
     "./testing": {
       "types": "./dist/testing.d.ts",
       "import": "./dist/testing.js"
+    },
+    "./websocket": {
+      "types": "./dist/websocket.d.ts",
+      "import": "./dist/websocket.js"
     },
     "./types": {
       "types": "./dist/types.d.ts",

@@ -65,6 +65,49 @@ Successful JSON and text bodies are bounded to 16 MiB by default; configure
 limit, up to 512 MiB. Explicit blob and array-buffer modes retain native
 behavior and are not subject to the text limit.
 
+## WebSocket transport
+
+Import the framework-free native browser client from `@global-torque/sdk/websocket`.
+Each factory call owns one connection lifetime. The host owns the URL, connection
+eligibility, heartbeat settings, session policy, and business-message handling.
+The SDK parses valid JSON text frames as `unknown`, ignores malformed and binary
+frames, and does not provide replay, queues, domain validation, or application state.
+
+```ts
+import { createWebSocketClient } from '@global-torque/sdk/websocket';
+
+const client = createWebSocketClient({
+  url: 'wss://notifications.example.com/ws',
+  reconnect: {
+    shouldRetry: () => navigator.onLine,
+    baseDelayMs: 1_000,
+    maxDelayMs: 30_000,
+    jitterMs: 500,
+  },
+  heartbeat: {
+    message: '{"Command": "ping"}',
+    responseMessage: 'pong',
+    intervalMs: 60_000,
+    timeoutMs: 1_000,
+  },
+  onStatusChange: (status) => console.info('WebSocket status:', status),
+  onMessage: (message) => {
+    // Validate and route the unknown message in the host application.
+    console.info(message);
+  },
+});
+
+client.connect();
+// At host logout or teardown:
+client.disconnect();
+```
+
+`connect()` is idempotent while an attempt or retry is active. A received frame
+cancels the current heartbeat wait. The configured heartbeat response is not
+forwarded to `onMessage`. `disconnect()` cancels retries and remains reusable;
+`dispose()` permanently ignores later callbacks. The factory can run during
+server-side rendering, but `connect()` requires the browser's native `WebSocket`.
+
 ## Response typing
 
 Unvalidated JSON remains `unknown`. Supply a synchronous validator to obtain a
@@ -316,7 +359,7 @@ const filer = createFilerResource(transport.createServiceClient('filer'), {
 The package uses explicit exports only:
 
 - root transport, auth, errors, idempotency, pagination, and types;
-- `./auth`, `./errors`, `./pagination`, `./testing`, and `./types`;
+- `./auth`, `./errors`, `./pagination`, `./testing`, `./types`, and `./websocket`;
 - `./resources/auth`, `./resources/distributions`, `./resources/evm`,
   `./resources/filer`, `./resources/forms`, `./resources/fund-manager`,
   `./resources/invitations`, `./resources/investments`, `./resources/offers`,
