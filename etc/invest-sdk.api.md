@@ -475,6 +475,9 @@ export interface CreateVaultRedemptionInput {
 // @public
 export const createVaultResource: (client: SdkServiceClient) => VaultResource;
 
+// @public
+export const createWebSocketClient: (options: WebSocketClientOptions) => WebSocketClient;
+
 // @alpha (undocumented)
 export const DEFAULT_EIP_7702_CONFIRMATION_TIMEOUT_MS = 120000;
 
@@ -4306,6 +4309,35 @@ export interface WalletTransactionsResponse {
     // (undocumented)
     readonly status?: 'all' | 'pending' | 'confirmed' | (string & {});
 }
+
+// @public
+export interface WebSocketClient {
+    connect(): void;
+    disconnect(): void;
+    dispose(): void;
+}
+
+// @public
+export interface WebSocketClientOptions {
+    heartbeat: {
+        message: string;
+        responseMessage: string;
+        intervalMs: number;
+        timeoutMs: number;
+    };
+    onMessage: (message: unknown) => void;
+    onStatusChange: (status: WebSocketStatus) => void;
+    reconnect: {
+        shouldRetry: () => boolean;
+        baseDelayMs: number;
+        maxDelayMs: number;
+        jitterMs: number;
+    };
+    url: string;
+}
+
+// @public
+export type WebSocketStatus = 'CONNECTING' | 'OPEN' | 'CLOSED';
 
 // (No @packageDocumentation comment for this package)
 
